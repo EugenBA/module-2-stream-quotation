@@ -1,9 +1,9 @@
 # stream-quatation/Cargo.toml
 [workspace]
 members = [
-    "sq-client",
-    "sq-server", 
-    "sq-lib",
+    "quote_client",
+    "quote_server",
+    "quote_lib",
 ]
 
 # Общие настройки для всех членов workspace[workspace.package]
