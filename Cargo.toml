@@ -9,7 +9,7 @@ members = [
 # Общие настройки для всех членов workspace[workspace.package]
 version = "0.1.0"
 edition = "2024"
-authors = ["Stream Quatation"]
+authors = ["Eugen Batts"]
 license = "MIT"
 
 

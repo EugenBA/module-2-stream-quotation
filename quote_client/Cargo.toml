@@ -1,6 +1,7 @@
 [package]
-name = "sq-client"
+name = "quote-client"
 version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+quote-lib ={path = "../quote_lib"}

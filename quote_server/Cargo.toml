@@ -1,6 +1,10 @@
 [package]
-name = "sq-server"
+name = "quote-server"
 version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+crossbeam-channel="0.5"
+quote-lib ={path = "../quote_lib"}
+rand = "0.10.0-rc.5"
+thiserror = "2.0.17"

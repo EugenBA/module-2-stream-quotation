@@ -1,3 +1,6 @@
+use std::io::Read;
+use crate::errors::QuoteGeneratorError;
+
 #[derive(Debug, Clone)]
 pub struct StockQuote {
     pub ticker: String,
@@ -6,10 +9,18 @@ pub struct StockQuote {
     pub timestamp: u64,
 }
 
-// Методы для сериализации/десериализации
 impl StockQuote {
+    pub fn get_quotes <R:Read> (r:&mut R) -> Result<Vec<String>, QuoteGeneratorError>{
+        let mut quotes = String::new();
+        r.read_to_string(&mut quotes)?;
+        Ok(quotes.split("\n").map(|s| s.to_string()).collect())
+    }
+
     pub fn to_string(&self) -> String {
-        format!("{}|{}|{}|{}", self.ticker, self.price, self.volume, self.timestamp)
+        format!(
+            "{}|{}|{}|{}",
+            self.ticker, self.price, self.volume, self.timestamp
+        )
     }
 
     pub fn from_string(s: &str) -> Option<Self> {
