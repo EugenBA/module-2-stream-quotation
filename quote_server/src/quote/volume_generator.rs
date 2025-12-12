@@ -1,18 +1,19 @@
-use std::sync::{Arc, RwLock};
 use std::time::{SystemTime, UNIX_EPOCH};
+use crossbeam_channel::Sender;
 use quote_lib::quote::stockquote::{StockQuote};
+use crate::error::QuoteStreamServerError;
 
 const BIG_PRICE:f64 = 210.0;
 const LOW_PRICE:f64 = 120.0;
 
 struct QuoteGenerator{
-    quotes: Arc<RwLock<Vec<StockQuote>>>
+    //quotes: StockQuote
 }
 
 
 impl QuoteGenerator {
 
-    pub fn generate_quote(&mut self, ticker: &str) -> Option<StockQuote> {
+    fn generate_quote(ticker: &str) -> Option<StockQuote> {
 
         let last_price = match ticker{
             // Популярные акции имеют больший объём
@@ -36,5 +37,16 @@ impl QuoteGenerator {
                 .unwrap()
                 .as_millis() as u64,
         })
+    }
+    pub fn thread_generate(s: Sender<StockQuote>, tickers: &Vec<String>) -> Result<(), QuoteStreamServerError>{
+        loop {
+            for ticker in tickers {
+               if let Some(quote) = QuoteGenerator::generate_quote(ticker){
+                   if let Err(e ) = s.send(quote){
+                       return Err(QuoteStreamServerError::GeneratorQuoteError(format!("Error sender quote {}", e)));
+                   }
+               }
+            }
+        }
     }
 }
