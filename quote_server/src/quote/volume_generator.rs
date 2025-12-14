@@ -1,12 +1,14 @@
 use std::time::{SystemTime, UNIX_EPOCH};
-use crossbeam_channel::Sender;
+use crossbeam_channel::{Receiver, Sender};
 use quote_lib::quote::stockquote::{StockQuote};
 use crate::error::QuoteStreamServerError;
 
 const BIG_PRICE:f64 = 210.0;
 const LOW_PRICE:f64 = 120.0;
 
-struct QuoteGenerator{
+
+#[derive(Default)]
+pub(crate) struct QuoteGenerator{
     //quotes: StockQuote
 }
 

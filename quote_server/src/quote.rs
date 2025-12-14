@@ -1,3 +1,3 @@
 
-mod volume_generator;
-mod quote_stream;
+pub(crate) mod volume_generator;
+pub(crate) mod quote_stream;

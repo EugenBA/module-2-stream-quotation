@@ -6,6 +6,8 @@ pub enum QuoteStreamServerError
 {
     #[error("Bad network bind socket: {0}")]
     BadNetworkBindSocket(String),
+    #[error("Bad network create TcpStream: {0}")]
+    BadCreateTcpStream(String),
     #[error("KeepAlive timeout error: {0}")]
     KeepAliveTimeoutError(String),
     #[error("Generate quote error: {0}")]

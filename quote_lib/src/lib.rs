@@ -1,3 +1,4 @@
+#![warn(missing_docs)]
 pub mod quote;
 pub mod errors;
 
