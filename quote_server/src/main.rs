@@ -9,7 +9,7 @@ use std::path::Path;
 use crate::server::{QuoteServer};
 
 fn main() {
-    let in_file = "quotes.txt";
+    let in_file = "/home/eugen/RustroverProjects/module-2-stream-quotation/tickets/tickets.txt";
     if !Path::new(&in_file).exists() {
         eprintln!("Файл {} не существует", in_file);
         return;

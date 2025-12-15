@@ -3,6 +3,7 @@ use std::io::{BufRead, Read};
 use std::io::BufReader;
 use std::io::Write;
 use std::net::{TcpListener, TcpStream};
+use std::str::SplitWhitespace;
 use crossbeam_channel::Receiver;
 use std::thread;
 use std::thread::{JoinHandle};
@@ -16,6 +17,14 @@ pub(crate) struct QuoteServer{
  }
 
 impl QuoteServer {
+
+    fn parse_cmd_stream(split_whitespace: &mut SplitWhitespace) -> Option<(String, String)>{
+        if let Some(udp) = split_whitespace.next() && let Some(tickets) =
+            split_whitespace.next(){
+            return Some((udp.replace("udp://",""), tickets.to_string()))
+        }
+        None
+    }
     fn handle_client(stream: TcpStream, receiver: Receiver<StockQuote>) {
         // клонируем stream: один экземпляр для чтения (обёрнут в BufReader), другой — для записи
         let mut writer = stream.try_clone().expect("failed to clone stream");
@@ -44,16 +53,20 @@ impl QuoteServer {
                     let mut parts = input.split_whitespace();
                     let response = match parts.next() {
                         Some("STREAM") => {
-                            let thread = thread::scope(|s|{
-                                s.spawn(||{
-                                    let quote_stream = QuoteStream::thread_stream(
-                                        "0.0.0.0:12345",
-                                        receiver.clone(),
-                                        "AAPL,MSFT,TSLA"
-                                    ).expect("");
+                            if let Some((udp, tikets)) = QuoteServer::parse_cmd_stream(&mut parts)
+                            {
+                                let thread = thread::scope(|s| {
+                                    s.spawn(|| {
+                                        let quote_stream = QuoteStream::thread_stream(
+                                            &udp,
+                                            receiver.clone(),
+                                            &tikets,
+                                        ).expect("");
+                                    });
                                 });
-                            });
-                            "OK\n".to_string()
+                                "OK\n".to_string()
+                            }
+                            else { "BAD\n".to_string() }
                         }
 
                         Some("RESTREAM") => {
