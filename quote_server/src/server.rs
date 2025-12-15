@@ -1,13 +1,10 @@
-use std::collections::HashSet;
 use std::io::{BufRead, Read};
 use std::io::BufReader;
 use std::io::Write;
-use std::net::{TcpListener, TcpStream, ToSocketAddrs};
+use std::net::{TcpListener, TcpStream};
 use std::str::SplitWhitespace;
 use crossbeam_channel::{bounded, Receiver};
 use std::thread;
-use std::thread::{JoinHandle};
-use crossbeam_channel::unbounded;
 use quote_lib::quote::stockquote::StockQuote;
 use crate::error::QuoteStreamServerError;
 use crate::quote::volume_generator::{QuoteGenerator};
@@ -19,9 +16,9 @@ pub(crate) struct QuoteServer{
 impl QuoteServer {
 
     fn parse_cmd_stream(split_whitespace: &mut SplitWhitespace) -> Option<(String, String)>{
-        if let Some(udp) = split_whitespace.next() && let Some(tickets) =
+        if let Some(client_adr) = split_whitespace.next() && let Some(tickets) =
             split_whitespace.next(){
-            return Some((udp.replace("udp://",""), tickets.to_string()))
+            return Some((client_adr.replace("udp://",""), tickets.to_string()))
         }
         None
     }
@@ -53,17 +50,17 @@ impl QuoteServer {
                     let mut parts = input.split_whitespace();
                     let response = match parts.next() {
                         Some("STREAM") => {
-                            if let Some((udp, tikets)) = QuoteServer::parse_cmd_stream(&mut parts)
+                            if let Some((client_adr, tikets)) = QuoteServer::parse_cmd_stream(&mut parts)
                             {
-                                let thread = thread::scope(|s| {
-                                    s.spawn(|| {
-                                        let quote_stream = QuoteStream::thread_stream(
-                                            &udp,
-                                            receiver.clone(),
+                                let value = receiver.clone();
+                                thread::spawn(move || {
+                                        return QuoteStream::thread_stream(
+                                            "localhost:7879",
+                                            &client_adr,
+                                            value.clone(),
                                             &tikets,
-                                        ).expect("");
+                                        )
                                     });
-                                });
                                 "OK\n".to_string()
                             }
                             else { "BAD\n".to_string() }
