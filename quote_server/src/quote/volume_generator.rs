@@ -1,4 +1,5 @@
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::thread;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use crossbeam_channel::{Receiver, Sender};
 use quote_lib::quote::stockquote::{StockQuote};
 use crate::error::QuoteStreamServerError;
@@ -49,6 +50,8 @@ impl QuoteGenerator {
                    }
                }
             }
+            println!("{}", format!("Len: {}", s.len()));
+            thread::sleep(Duration::from_secs(5));
         }
     }
 }

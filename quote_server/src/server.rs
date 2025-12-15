@@ -2,9 +2,9 @@ use std::collections::HashSet;
 use std::io::{BufRead, Read};
 use std::io::BufReader;
 use std::io::Write;
-use std::net::{TcpListener, TcpStream};
+use std::net::{TcpListener, TcpStream, ToSocketAddrs};
 use std::str::SplitWhitespace;
-use crossbeam_channel::Receiver;
+use crossbeam_channel::{bounded, Receiver};
 use std::thread;
 use std::thread::{JoinHandle};
 use crossbeam_channel::unbounded;
@@ -31,7 +31,7 @@ impl QuoteServer {
         let mut reader = BufReader::new(stream);
 
         // send initial prompt
-        let _ = writer.write_all(b"Welcome to the Vault!\n");
+        let _ = writer.write_all(b"Welcome to quotation stream!\n");
         let _ = writer.flush();
         let mut line = String::new();
 
@@ -92,27 +92,35 @@ impl QuoteServer {
         }
     }
 
-    pub fn run_quote_server<R: Read>(r: &mut R) -> Result<(), QuoteStreamServerError>{
+    pub fn run_quote_server<R: Read>(r: &mut R, url_bind: &str) -> Result<(), QuoteStreamServerError>{
         if let Ok(tickers) = StockQuote::get_quotes(r) {
-            let (sender, receiver) = unbounded::<StockQuote>();
-            thread::scope(|s| {
+            println!("{}", format!("Server ready listening on: {}", url_bind.to_string()));
+            let (sender, receiver) = bounded::<StockQuote>(tickers.len());
+            let thr = thread::scope(|s| {
                 s.spawn(|| {
-                    QuoteGenerator::thread_generate(sender, &tickers).expect("TODO: panic message");
+                    QuoteGenerator::thread_generate(sender, &tickers)
+                        .expect("Generator quote run error");
+                });
+                s.spawn(||{
+                    let listener = TcpListener::bind(url_bind)?;
+                    println!("{}", format!("Server listening on: {}", url_bind.to_string()));
+                    for stream in listener.incoming() {
+                        match stream {
+                            Ok(stream) => {
+                                let value = receiver.clone();
+                                thread::spawn(move || {
+                                    QuoteServer::handle_client(stream, value);
+                                });
+                            }
+                            Err(e) => return Err(QuoteStreamServerError::BadCreateTcpStream(e.to_string()))
+                        }
+                    }
+                    Ok(())
                 });
             });
-            let listener = TcpListener::bind("127.0.0.1:7878")?;
-            println!("Server listening on port 7878");
-            for stream in listener.incoming() {
-                match stream {
-                    Ok(stream) => {
-                        let value = receiver.clone();
-                        thread::spawn(move || {
-                            QuoteServer::handle_client(stream, value);
-                        });
-                    }
-                    Err(e) => return Err(QuoteStreamServerError::BadCreateTcpStream(e.to_string()))
-                }
-            }
+        }
+        else {
+            return Err(QuoteStreamServerError::BadCreateTcpStream("No read tickets".to_string()))
         }
         Ok(())
     }

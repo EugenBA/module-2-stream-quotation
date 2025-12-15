@@ -14,8 +14,10 @@ fn main() {
         eprintln!("Файл {} не существует", in_file);
         return;
     }
+    let url_bind = "127.0.0.1:9120".to_string();
     let mut reader = BufReader::new(File::open(in_file).unwrap());
-    if let Err(quote_server) = QuoteServer::run_quote_server(&mut reader){
+    if let Err(quote_server) =
+        QuoteServer::run_quote_server(&mut reader, &url_bind){
         println!("Error: {}", quote_server);
     }
 }
