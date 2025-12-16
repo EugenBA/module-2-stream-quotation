@@ -64,13 +64,6 @@ impl QuoteServer {
         let mut line = String::new();
         loop {
             line.clear();
-            // read_line ждёт '\n' — nc отправляет строку по нажатию Enter
-            if let Some(thread) = &self.thread{
-                if self.is_running.load(SeqCst) {
-                    let _ =writer.write_all(b"is_running: true\n");
-                    let _ =writer.flush();
-                }
-            }
             match reader.read_line(&mut line) {
                 Ok(0) => {
                     // EOF — клиент закрыл соединение
@@ -82,42 +75,30 @@ impl QuoteServer {
                         let _ = writer.flush();
                         continue;
                     }
-
                     let mut parts = input.split_whitespace();
                     let response = match parts.next() {
                         Some("STREAM") => {
                             self.start_quote_stream(udp_bind_adr.clone(), parts, receiver.clone())
-                            /*if let Some((client_adr, tickets)) = QuoteServer::parse_cmd_stream(&mut parts)
-                            {
-                                let value = receiver.clone();
-                                let udp_bind = udp_bind_adr.clone();
-                                let is_run = self.is_running.clone();
-                                self.thread = Some(thread::spawn(move || {
-                                        return QuoteStream::thread_stream(
-                                            &udp_bind,
-                                            &client_adr,
-                                            value.clone(),
-                                            &tickets,
-                                            is_run
-                                        )
-                                    }));
-                                "OK\n".to_string()
-                            }
-                            else { "Error command\n".to_string() }*/
                         }
-
                         Some("RESTREAM") => {
-                            while self.is_running.load(SeqCst) {
-                                self.cancel_token.store(true, SeqCst);
+                            if let Some(_) = &self.thread {
+                                while self.is_running.load(SeqCst) {
+                                    self.cancel_token.store(true, SeqCst);
+                                }
                             }
                             self.start_quote_stream(udp_bind_adr.clone(), parts, receiver.clone())
-                        }
 
+                        }
                         Some("STOP") => {
-                            while self.is_running.load(SeqCst) {
-                                self.cancel_token.store(true, SeqCst);
+                            if let Some(_) = &self.thread {
+                                while self.is_running.load(SeqCst) {
+                                    self.cancel_token.store(true, SeqCst);
+                                }
+                                "OK Stop\n".to_string()
                             }
-                            "OK Stop\n".to_string()
+                            else{
+                                "Thread not running\n".to_string()
+                            }
                         }
 
                         _ => "Error command\n".to_string(),
