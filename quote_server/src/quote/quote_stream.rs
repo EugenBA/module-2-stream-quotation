@@ -1,4 +1,7 @@
 use std::net::UdpSocket;
+use std::sync::Arc;
+use std::sync::atomic::AtomicBool;
+use std::sync::atomic::Ordering::SeqCst;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use crate::error::QuoteStreamServerError;
 use crossbeam_channel::Receiver;
@@ -7,6 +10,10 @@ use quote_lib::quote::stockquote::StockQuote;
 pub(crate) struct QuoteStream {
     socket: UdpSocket,
     keep_alive_timestamp: u64
+}
+
+pub(crate) enum QuoteStreamResult {
+    Canceled,
 }
 const UDP_READ_TIMEOUT_SECOND: u64 = 4;
 
@@ -26,10 +33,14 @@ impl QuoteStream {
         Ok(())
     }
 
-    pub fn thread_stream(bind_adr: &str, client_adr: &str, r: Receiver<StockQuote>, tickers: &str) -> Result<(), QuoteStreamServerError> {
-        let mut socket = Self::new(bind_adr)?;
+    pub fn thread_stream(udp_bind_adr: &str, client_adr: &str,
+                         r: Receiver<StockQuote>, tickers: &str,
+                         is_running: Arc<AtomicBool>,
+                         cancel_token: Arc<AtomicBool>) -> Result<QuoteStreamResult, QuoteStreamServerError> {
+        let mut socket = Self::new(udp_bind_adr)?;
         socket.socket.set_read_timeout(Some(Duration::from_secs(UDP_READ_TIMEOUT_SECOND)))?;
         let ticks = tickers.split(",").collect::<Vec<&str>>();
+        is_running.store(true, SeqCst);
         loop {
             if let Ok(quote) = r.recv() {
                 if ticks.contains(&quote.ticker.as_str()) {
@@ -53,7 +64,17 @@ impl QuoteStream {
                     }
                 }
             }
+            if cancel_token.load(SeqCst) {
+                break;
+            }
         }
-        Err(QuoteStreamServerError::KeepAliveTimeoutError("KeepAlive timeout error".to_string()))
+        is_running.store(false, SeqCst);
+        if cancel_token.load(SeqCst) {
+            cancel_token.store(false, SeqCst);
+            Ok(QuoteStreamResult::Canceled)
+        }
+        else {
+            Err(QuoteStreamServerError::KeepAliveTimeoutError("KeepAlive timeout error".to_string()))
+        }
     }
 }

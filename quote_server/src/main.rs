@@ -15,9 +15,10 @@ fn main() {
         return;
     }
     let url_bind = "127.0.0.1:7878".to_string();
+    let udp_bind = "127.0.0.1:7879".to_string();
     let mut reader = BufReader::new(File::open(in_file).unwrap());
     if let Err(quote_server) =
-        QuoteServer::run_quote_server(&mut reader, &url_bind){
+        QuoteServer::run_quote_server(&mut reader, &url_bind, &udp_bind){
         println!("Error: {}", quote_server);
     }
 }
