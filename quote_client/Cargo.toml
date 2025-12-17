@@ -5,3 +5,4 @@ edition = "2024"
 
 [dependencies]
 quote-lib ={path = "../quote_lib"}
+thiserror = "2.0"
