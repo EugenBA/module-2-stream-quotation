@@ -2,7 +2,7 @@ use std::fmt::{Display};
 use std::io;
 use thiserror::Error;
 #[derive(Error, Debug)]
-pub enum QuoteStreamServerError
+pub(crate) enum QuoteStreamServerError
 {
     #[error("Bad network bind socket: {0}")]
     BadNetworkBindSocket(String),

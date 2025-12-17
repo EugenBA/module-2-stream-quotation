@@ -28,11 +28,6 @@ impl QuoteStream {
         })
     }
 
-    fn send_quote(&self, quote: &str) -> Result<(), QuoteStreamServerError> {
-        self.socket.send(quote.as_bytes())?;
-        Ok(())
-    }
-
     pub fn thread_stream(udp_bind_adr: &str, client_adr: &str,
                          r: Receiver<StockQuote>, tickers: &str,
                          is_running: Arc<AtomicBool>,
