@@ -117,7 +117,7 @@ impl QuoteServer {
     }
 
     pub fn run_quote_server<R: Read>(r: &mut R, tcp_bind: &str, udp_bind: &str) -> Result<(), QuoteStreamServerError>{
-        if let Ok(tickers) = StockQuote::get_quotes(r) {
+        if let Ok(tickers) = StockQuote::get_tickers(r) {
             let (sender, receiver) = bounded::<StockQuote>(tickers.len());
             let thr = thread::scope(|s| {
                 s.spawn(|| {

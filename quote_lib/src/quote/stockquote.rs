@@ -10,10 +10,15 @@ pub struct StockQuote {
 }
 
 impl StockQuote {
-    pub fn get_quotes <R:Read> (r:&mut R) -> Result<Vec<String>, QuoteGeneratorError>{
+    pub fn get_tickers <R:Read> (r:&mut R) -> Result<Vec<String>, QuoteGeneratorError>{
         let mut quotes = String::new();
         r.read_to_string(&mut quotes)?;
         Ok(quotes.split("\n").map(|s| s.to_string()).collect())
+    }
+    
+    pub fn get_tickers_string_from_file<R:Read>(r:&mut R) -> Result<String, QuoteGeneratorError>{
+        let vec = Self::get_tickers(r)?;
+        Ok(vec.join(","))
     }
 
     pub fn to_string(&self) -> String {
