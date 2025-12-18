@@ -6,3 +6,4 @@ edition = "2024"
 [dependencies]
 quote-lib ={path = "../quote_lib"}
 thiserror = "2.0"
+socket2 = "0.6.1"
