@@ -19,7 +19,8 @@ fn main() {
     let udp_bind = "127.0.0.1:55500".to_string();
     let mut reader = BufReader::new(File::open(in_file).unwrap());
     let tickers = StockQuote::get_tickers_string_from_file(&mut reader).unwrap();
-    if let Err(e) = QuoteStreamClient::get_quote_stream(&udp_bind, &server_addr, tickers)
+    let mut quote_stream_client = QuoteStreamClient::default();
+    if let Err(e) = quote_stream_client.get_quote_stream(&udp_bind, &server_addr, tickers)
     {
         println!("Error: {}", e);
     }
