@@ -1,17 +1,13 @@
 use std::fmt::{Display, Formatter};
 use std::io;
+use std::time::SystemTimeError;
 use thiserror::Error;
 #[derive(Error, Debug)]
 pub enum QuoteGeneratorError
 {
+    #[error("Bad parse quote: {0}")]
     BadParseQuote(String),
-}
-impl Display for QuoteGeneratorError{
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self {
-            QuoteGeneratorError::BadParseQuote(s) => write!(f, "File read error: {}", s),
-        }
-    }
+
 }
 
 impl  From<io::Error> for QuoteGeneratorError{
@@ -19,3 +15,4 @@ impl  From<io::Error> for QuoteGeneratorError{
         QuoteGeneratorError::BadParseQuote(err.to_string())
     }
 }
+

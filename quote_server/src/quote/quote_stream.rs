@@ -22,8 +22,7 @@ impl QuoteStream {
         Ok(Self {
             socket: UdpSocket::bind(bind_adr)?,
             keep_alive_timestamp: SystemTime::now()
-                .duration_since(UNIX_EPOCH)
-                .unwrap()
+                .duration_since(UNIX_EPOCH)?
                 .as_secs(),
         })
     }
@@ -47,13 +46,12 @@ impl QuoteStream {
                 Ok((size, src)) => {
                     if size > 0 && String::from_utf8_lossy(&ping[..size]).contains("PING") {
                         socket.keep_alive_timestamp = SystemTime::now()
-                            .duration_since(UNIX_EPOCH)
-                            .unwrap()
+                            .duration_since(UNIX_EPOCH)?
                             .as_secs()
                     }
                 }
                 Err(_) => {
-                    if SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs() -
+                    if SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs() -
                         socket.keep_alive_timestamp > 5 {
                         break;
                     }

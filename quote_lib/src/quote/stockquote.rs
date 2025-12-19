@@ -36,6 +36,7 @@ impl StockQuote {
                 price: parts[1].parse().ok()?,
                 volume: parts[2].parse().ok()?,
                 timestamp: parts[3].parse().ok()?,
+                
             })
         } else {
             None
