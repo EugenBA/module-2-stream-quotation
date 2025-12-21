@@ -7,18 +7,49 @@ use std::fs::File;
 use std::io::BufReader;
 use std::path::Path;
 use crate::server::{QuoteServer};
+use clap::{Arg, Command};
 
 fn main() {
-    let in_file = "/mnt/ssd_data/RustProject/module2-stream-quotation/tickets/tickets.txt";
-    if !Path::new(&in_file).exists() {
-        eprintln!("Файл {} не существует", in_file);
-        return;
-    }
-    let url_bind = "127.0.0.1:7878".to_string();
-    let udp_bind = "127.0.0.1:7879".to_string();
-    let mut reader = BufReader::new(File::open(in_file).unwrap());
-    if let Err(quote_server) =
-        QuoteServer::run_quote_server(&mut reader, &url_bind, &udp_bind){
-        println!("Error: {}", quote_server);
+    /*let matches = Command::new("quote-server")
+        .version("0.1.0")
+        .about("Demo quote stream server")
+        .arg(
+            Arg::new("local")
+                .short('l')
+                .long("local")
+                .help("Local address: host:port")
+                .required(true)
+        )
+        .arg(
+            Arg::new("udp")
+                .short('u')
+                .long("udp")
+                .help("Server udp bind address: host:port")
+                .required(true)
+        )
+        .arg(
+            Arg::new("tickets")
+                .short('t')
+                .long("tickets")
+                .help("File path tickets file")
+                .required(true)
+        )
+        .get_matches();
+    let local = matches.get_one::<String>("local");
+    let udp = matches.get_one::<String>("udp");
+    let tickets_file = matches.get_one::<String>("tickets");*/
+    let local = Some("127.0.0.1:8120");
+    let udp = Some("127.0.0.1:55505");
+    let tickets_file = Some("/mnt/ssd_data/RustProject/module2-stream-quotation/tickets/tickets.txt");
+    if let Some(local) = local && let Some(udp) = udp && let Some(tickets_file) = tickets_file {
+        if !Path::new(&tickets_file).exists() {
+            eprintln!("Файл {} не существует", tickets_file);
+            return;
+        }
+        let mut reader = BufReader::new(File::open(tickets_file).unwrap());
+        if let Err(quote_server) =
+            QuoteServer::run_quote_server(&mut reader, local, udp) {
+            println!("Error: {}", quote_server);
+        }
     }
 }

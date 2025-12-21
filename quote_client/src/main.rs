@@ -10,13 +10,13 @@ mod client;
 mod error;
 
 fn main() {
-    let matches = Command::new("quote-client")
+   /* let matches = Command::new("quote-client")
         .version("0.1.0")
         .about("Demo quote stream client")
         .arg(
-            Arg::new("host")
-                .short('h')
-                .long("host")
+            Arg::new("server")
+                .short('s')
+                .long("server")
                 .help("Destination host address: host:port")
                 .required(true)
         )
@@ -35,9 +35,12 @@ fn main() {
                 .required(true)
         )
         .get_matches();
-    let host = matches.get_one::<String>("host");
+    let host = matches.get_one::<String>("server");
     let udp = matches.get_one::<String>("udp");
-    let tickets_file = matches.get_one::<String>("tickets");
+    let tickets_file = matches.get_one::<String>("tickets");*/
+    let host = Some("127.0.0.1:8120");
+    let udp = Some("127.0.0.1:55500");
+    let tickets_file = Some("/mnt/ssd_data/RustProject/module2-stream-quotation/tickets/tickets_request.txt");
     if let Some(host) = host && let Some(udp) = udp && let Some(tickets_file) = tickets_file{
         if !Path::new(tickets_file).exists() {
             eprintln!("Файл {} не существует", tickets_file);

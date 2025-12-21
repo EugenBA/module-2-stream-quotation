@@ -8,3 +8,4 @@ crossbeam-channel="0.5"
 quote-lib ={path = "../quote_lib"}
 rand = "0.10.0-rc.5"
 thiserror = "2.0"
+clap = "4.5"

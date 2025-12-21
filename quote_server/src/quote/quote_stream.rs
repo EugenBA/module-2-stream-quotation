@@ -35,10 +35,14 @@ impl QuoteStream {
         socket.socket.set_read_timeout(Some(Duration::from_secs(UDP_READ_TIMEOUT_SECOND)))?;
         let ticks = tickers.split(",").collect::<Vec<&str>>();
         is_running.store(true, SeqCst);
+        let marker_quote = StockQuote::new();
         loop {
             if let Ok(quote) = r.recv() {
                 if ticks.contains(&quote.ticker.as_str()) {
                     socket.socket.send_to(&quote.to_bytes(), client_adr)?;
+                }
+                else {
+                    socket.socket.send_to(&marker_quote.to_bytes(), client_adr)?;
                 }
             }
             let mut ping: Vec<u8> = Vec::new();

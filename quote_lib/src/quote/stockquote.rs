@@ -10,6 +10,14 @@ pub struct StockQuote {
 }
 
 impl StockQuote {
+    pub fn new() -> Self {
+        StockQuote {
+            ticker: "QU-MARK".to_string(),
+            price: -9999.0,
+            volume: 0,
+            timestamp: 0,
+        }
+    }
     pub fn get_tickers <R:Read> (r:&mut R) -> Result<Vec<String>, QuoteGeneratorError>{
         let mut quotes = String::new();
         r.read_to_string(&mut quotes)?;
@@ -29,7 +37,8 @@ impl StockQuote {
     }
 
     pub fn from_string(s: &str) -> Option<Self> {
-        let parts: Vec<&str> = s.split('|').collect();
+        let binding = s.replace('\n', "");
+        let parts: Vec<&str> = binding.split('|').collect();
         if parts.len() == 4 {
             Some(StockQuote {
                 ticker: parts[0].to_string(),
@@ -53,6 +62,7 @@ impl StockQuote {
         bytes.extend_from_slice(self.volume.to_string().as_bytes());
         bytes.push(b'|');
         bytes.extend_from_slice(self.timestamp.to_string().as_bytes());
+        bytes.push(b'\n');
         bytes
     }
 }

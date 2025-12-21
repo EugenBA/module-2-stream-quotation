@@ -100,7 +100,6 @@ impl QuoteServer {
                                 "Thread not running\n".to_string()
                             }
                         }
-
                         _ => "Error command\n".to_string(),
                     };
 

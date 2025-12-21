@@ -50,8 +50,7 @@ impl QuoteGenerator {
                    }
                }
             }
-            println!("{}", format!("Len: {}", s.len()));
-            thread::sleep(Duration::from_secs(5));
+            thread::sleep(Duration::from_millis(500));
         }
     }
 }
