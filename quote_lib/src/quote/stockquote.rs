@@ -10,9 +10,9 @@ pub struct StockQuote {
 }
 
 impl StockQuote {
-    pub fn new() -> Self {
+    pub fn new(name_ticker: &str) -> Self {
         StockQuote {
-            ticker: "QU-MARK".to_string(),
+            ticker: name_ticker.to_string(),
             price: -9999.0,
             volume: 0,
             timestamp: 0,
@@ -22,6 +22,12 @@ impl StockQuote {
         let mut quotes = String::new();
         r.read_to_string(&mut quotes)?;
         Ok(quotes.split("\n").map(|s| s.to_string()).collect())
+    }
+    
+    pub fn get_tickers_subscribe(tickers: &str) -> Vec<StockQuote>{
+        let tickers : Vec<StockQuote> = tickers.split(",").map(|s| 
+            StockQuote::new(s)).collect();
+        tickers
     }
     
     pub fn get_tickers_string_from_file<R:Read>(r:&mut R) -> Result<String, QuoteGeneratorError>{

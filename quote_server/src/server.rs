@@ -1,9 +1,10 @@
+use std::collections::HashSet;
 use std::io::{BufRead, Read};
 use std::io::BufReader;
 use std::io::Write;
 use std::net::{TcpListener, TcpStream};
 use std::str::SplitWhitespace;
-use std::sync::{Arc};
+use std::sync::{Arc, Mutex};
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering::SeqCst;
 use crossbeam_channel::{bounded, Receiver};
@@ -18,7 +19,8 @@ use crate::quote::quote_stream::{QuoteStream, QuoteStreamResult};
 pub(crate) struct QuoteServer{
     thread: Option<JoinHandle<Result<QuoteStreamResult, QuoteStreamServerError>>>,
     is_running: Arc<AtomicBool>,
-    cancel_token: Arc<AtomicBool>
+    cancel_token: Arc<AtomicBool>,
+    subscribe_tickers: Arc<Mutex<Vec<StockQuote>>>
  }
 
 impl QuoteServer {
@@ -34,21 +36,29 @@ impl QuoteServer {
     fn start_quote_stream(&mut self, udp_bind_adr: String,
                           mut cmd: SplitWhitespace,
                           receiver: Receiver<StockQuote>) -> String {
-        if let Some((client_adr, tickets)) = QuoteServer::parse_cmd_stream(&mut cmd)
+        if let Some((client_adr, tickers)) = QuoteServer::parse_cmd_stream(&mut cmd)
         {
             let is_run = self.is_running.clone();
             let cancel_token = self.cancel_token.clone();
+            if let Ok(mut tickers_subscribe_lock) = self.subscribe_tickers.lock() {
+                tickers_subscribe_lock.clear();
+                *tickers_subscribe_lock = StockQuote::get_tickers_subscribe(&tickers);
+            }
+            else{
+                return "Error store subscribe tickers\n".to_string()
+            }
+            let subscribe_tickers = self.subscribe_tickers.clone();
             self.thread = Some(thread::spawn(move || {
-                return QuoteStream::thread_stream(
-                    &udp_bind_adr,
-                    &client_adr,
-                    receiver,
-                    &tickets,
-                    is_run,
-                    cancel_token
-                )
-            }));
-            "OK Stream\n".to_string()
+                    return QuoteStream::thread_stream(
+                        &udp_bind_adr,
+                        &client_adr,
+                        receiver,
+                        subscribe_tickers,
+                        is_run,
+                        cancel_token
+                    )
+                }));
+                "OK Stream\n".to_string()
         }
         else { "Error command stream\n".to_string() }
 

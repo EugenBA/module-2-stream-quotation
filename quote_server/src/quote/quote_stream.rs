@@ -1,7 +1,8 @@
 use std::net::UdpSocket;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering::SeqCst;
+use std::thread;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use crate::error::QuoteStreamServerError;
 use crossbeam_channel::Receiver;
@@ -16,6 +17,7 @@ pub(crate) enum QuoteStreamResult {
     Canceled,
 }
 const UDP_READ_TIMEOUT_SECOND: u64 = 4;
+const UDP_SEND_PERIOD: u64 = 2;
 
 impl QuoteStream {
     pub fn new(bind_adr: &str) -> Result<Self, QuoteStreamServerError> {
@@ -27,23 +29,54 @@ impl QuoteStream {
         })
     }
 
+    fn thread_update_tickers(r: Receiver<StockQuote>,
+                             tickers: Arc<Mutex<Vec<StockQuote>>>,
+                             is_running: Arc<AtomicBool>,
+                             cancel_token: Arc<AtomicBool>){
+        loop {
+            is_running.store(true, SeqCst);
+            if let Ok(quote) = r.recv() {
+                if let Ok(mut tickers_guard) = tickers.lock(){
+                    tickers_guard.iter_mut().for_each(|ticker| {
+                        if ticker.ticker == quote.ticker {
+                            ticker.price = quote.price;
+                            ticker.volume = quote.volume;
+                            ticker.timestamp = quote.timestamp;
+                        }
+                    });
+                }
+            }
+            if cancel_token.load(SeqCst) {
+                break;
+            }
+
+        }
+        is_running.store(false, SeqCst);
+    }
+
     pub fn thread_stream(udp_bind_adr: &str, client_adr: &str,
-                         r: Receiver<StockQuote>, tickers: &str,
+                         r: Receiver<StockQuote>, tickers: Arc<Mutex<Vec<StockQuote>>>,
                          is_running: Arc<AtomicBool>,
                          cancel_token: Arc<AtomicBool>) -> Result<QuoteStreamResult, QuoteStreamServerError> {
         let mut socket = Self::new(udp_bind_adr)?;
         socket.socket.set_read_timeout(Some(Duration::from_secs(UDP_READ_TIMEOUT_SECOND)))?;
-        let ticks = tickers.split(",").collect::<Vec<&str>>();
         is_running.store(true, SeqCst);
-        let marker_quote = StockQuote::new();
+        let is_running_update_tickers : Arc<AtomicBool> = Arc::new(AtomicBool::new(false));
+        let cancel_token_updater_tickers : Arc<AtomicBool> = Arc::new(AtomicBool::new(false));
+        let ticker_update = tickers.clone();
+        let is_run_update_ticker = is_running_update_tickers.clone();
+        let cancel_update_ticker = cancel_token_updater_tickers.clone();
+        let thread = thread::spawn(move || {
+            return QuoteStream::thread_update_tickers(r, ticker_update,
+                                                      is_run_update_ticker,
+                                                      cancel_update_ticker);
+        });
         loop {
-            if let Ok(quote) = r.recv() {
-                if ticks.contains(&quote.ticker.as_str()) {
-                    socket.socket.send_to(&quote.to_bytes(), client_adr)?;
-                }
-                else {
-                    socket.socket.send_to(&marker_quote.to_bytes(), client_adr)?;
-                }
+            thread::sleep(Duration::from_secs(UDP_SEND_PERIOD));
+            if let Ok(tickers_guard) = tickers.lock() {
+                tickers_guard.iter().for_each(|tickers| {
+                      let _ = socket.socket.send_to(&tickers.to_bytes(), client_adr);
+                });
             }
             let mut ping: Vec<u8> = Vec::new();
             match socket.socket.recv_from(&mut ping) {
@@ -62,6 +95,9 @@ impl QuoteStream {
                 }
             }
             if cancel_token.load(SeqCst) {
+                while is_running_update_tickers.load(SeqCst) {
+                    cancel_token_updater_tickers.store(true, SeqCst);
+                }
                 break;
             }
         }
@@ -73,5 +109,6 @@ impl QuoteStream {
         else {
             Err(QuoteStreamServerError::KeepAliveTimeoutError("KeepAlive timeout error".to_string()))
         }
+
     }
 }

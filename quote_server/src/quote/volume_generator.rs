@@ -50,7 +50,7 @@ impl QuoteGenerator {
                    }
                }
             }
-            thread::sleep(Duration::from_millis(500));
+            thread::sleep(Duration::from_millis(100));
         }
     }
 }
