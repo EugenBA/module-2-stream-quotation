@@ -1,4 +1,3 @@
-use std::collections::HashSet;
 use std::io::{BufRead, Read};
 use std::io::BufReader;
 use std::io::Write;
@@ -17,11 +16,21 @@ use crate::quote::quote_stream::{QuoteStream, QuoteStreamResult};
 
 #[derive(Default)]
 pub(crate) struct QuoteServer{
-    thread: Option<JoinHandle<Result<QuoteStreamResult, QuoteStreamServerError>>>,
-    is_running: Arc<AtomicBool>,
-    cancel_token: Arc<AtomicBool>,
-    subscribe_tickers: Arc<Mutex<Vec<StockQuote>>>
+    thread: Vec<JoinHandle<Result<QuoteStreamResult, QuoteStreamServerError>>>,
+    thread_state: Vec<Arc<Mutex<QuoteServerThreadState>>>,
+    subscribe_tickers: Arc<Mutex<Vec<StockQuote>>>,
  }
+
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub(crate) enum QuoteServerThreadState{
+    Running,
+    Cancelled,
+    Stopped,
+    HalfState
+}
+
+
 
 impl QuoteServer {
 
@@ -38,8 +47,7 @@ impl QuoteServer {
                           receiver: Receiver<StockQuote>) -> String {
         if let Some((client_adr, tickers)) = QuoteServer::parse_cmd_stream(&mut cmd)
         {
-            let is_run = self.is_running.clone();
-            let cancel_token = self.cancel_token.clone();
+            let thread_state_stream = Arc::new(Mutex::new(QuoteServerThreadState::Stopped));
             if let Ok(mut tickers_subscribe_lock) = self.subscribe_tickers.lock() {
                 tickers_subscribe_lock.clear();
                 *tickers_subscribe_lock = StockQuote::get_tickers_subscribe(&tickers);
@@ -48,21 +56,53 @@ impl QuoteServer {
                 return "Error store subscribe tickers\n".to_string()
             }
             let subscribe_tickers = self.subscribe_tickers.clone();
-            self.thread = Some(thread::spawn(move || {
-                    return QuoteStream::thread_stream(
-                        &udp_bind_adr,
-                        &client_adr,
-                        receiver,
-                        subscribe_tickers,
-                        is_run,
-                        cancel_token
-                    )
-                }));
-                "OK Stream\n".to_string()
+            self.thread_state.push(thread_state_stream.clone());
+            self.thread.push(thread::spawn(move || {
+                return QuoteStream::thread_stream(
+                    &udp_bind_adr,
+                    &client_adr,
+                    subscribe_tickers,
+                    thread_state_stream
+                )
+            }));
+            let thread_state_ticker_update = Arc::new(Mutex::new(QuoteServerThreadState::Stopped));
+            let subscribe_tickers_update = self.subscribe_tickers.clone();
+            self.thread_state.push(thread_state_ticker_update.clone());
+            self.thread.push(thread::spawn(move || {
+                return QuoteStream::thread_update_tickers(receiver, subscribe_tickers_update,
+                                                          thread_state_ticker_update);
+            }));
+            "OK Stream\n".to_string()
         }
         else { "Error command stream\n".to_string() }
 
     }
+    fn stop_quote_stream(&mut self){
+        for thread in &mut self.thread_state{
+            if let Ok(mut state) = thread.lock() {
+                *state = QuoteServerThreadState::Cancelled;
+            }
+        }
+    }
+    fn state_thread(&self) -> QuoteServerThreadState{
+        let mut count_stoped = 0;
+        for thread in &self.thread_state{
+            if let Ok(state) = thread.lock() &&
+                *state == QuoteServerThreadState::Stopped{
+                count_stoped += 1;
+            }
+        }
+        match count_stoped  {
+            0 => QuoteServerThreadState::Running,
+            _ => {
+                if count_stoped == self.thread_state.len() {
+                    return QuoteServerThreadState::Stopped;
+                }
+                QuoteServerThreadState::HalfState
+            }
+        }
+    }
+
     fn handle_client(&mut self, udp_bind_adr: String, stream: TcpStream, receiver: Receiver<StockQuote>) {
         // клонируем stream: один экземпляр для чтения (обёрнут в BufReader), другой — для записи
         let mut writer = stream.try_clone().expect("failed to clone stream");
@@ -76,7 +116,6 @@ impl QuoteServer {
             line.clear();
             match reader.read_line(&mut line) {
                 Ok(0) => {
-                    // EOF — клиент закрыл соединение
                     return;
                 }
                 Ok(_) => {
@@ -91,19 +130,12 @@ impl QuoteServer {
                             self.start_quote_stream(udp_bind_adr.clone(), parts, receiver.clone())
                         }
                         Some("RESTREAM") => {
-                            if let Some(_) = &self.thread {
-                                while self.is_running.load(SeqCst) {
-                                    self.cancel_token.store(true, SeqCst);
-                                }
-                            }
+                            self.stop_quote_stream();
                             self.start_quote_stream(udp_bind_adr.clone(), parts, receiver.clone())
-
                         }
                         Some("STOP") => {
-                            if let Some(_) = &self.thread {
-                                while self.is_running.load(SeqCst) {
-                                    self.cancel_token.store(true, SeqCst);
-                                }
+                            if self.thread_state.len() > 0 {
+                                self.stop_quote_stream();
                                 "OK Stop\n".to_string()
                             }
                             else{
@@ -119,8 +151,12 @@ impl QuoteServer {
                 }
                 Err(_) => {
                     // ошибка чтения — закрываем
+                    self.stop_quote_stream();
                     return;
                 }
+            }
+            if self.state_thread() == QuoteServerThreadState::HalfState{
+                self.stop_quote_stream();
             }
         }
     }

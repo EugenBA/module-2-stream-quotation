@@ -16,7 +16,9 @@ pub(crate) enum QuoteStreamServerError
     #[error("Generate quote error: {0}")]
     GeneratorQuoteError(String),
     #[error("Bad set system time: {0}")]
-    BadSetSystemTimeError(String)
+    BadSetSystemTimeError(String),
+    #[error("State change error: {0}")]
+    ChangeThreadStateError(String)
 }
 
 impl  From<io::Error> for QuoteStreamServerError{

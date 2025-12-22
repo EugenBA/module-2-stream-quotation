@@ -67,6 +67,7 @@ impl QuoteStreamClient {
         loop {
             if !is_connected {
                 println!("Try connecting to server at {}", server_adr);
+                udp_src_addr = "".to_string();
                 while self.is_running_ping.load(SeqCst) {
                     self.is_running_ping.store(false, SeqCst);
                 }
@@ -117,9 +118,9 @@ impl QuoteStreamClient {
                 Ok((size, src)) => {
                     if size > 0 {
                          if let Some(quote) = StockQuote::from_string(String::from_utf8_lossy(&quote[..size]).as_ref())
-                         && quote.ticker != "QU-MARK"{
-                            println!("{:?}", quote);
-                        }
+                         {
+                             println!("{:?}", quote);
+                         }
                     }
                     if src.to_string() != udp_src_addr {
                         udp_src_addr = src.to_string();
@@ -138,6 +139,10 @@ impl QuoteStreamClient {
                                     is_running_ping
                                 )
                             });
+                            while !self.is_running_ping.load(SeqCst) {
+                                println!("Waiting starting ping quote server...");
+                                thread::sleep(Duration::from_millis(DURATION_WAIT_TO_CONNECT));
+                            }
                         }
                     }
                 }

@@ -1,12 +1,15 @@
+use std::cmp::PartialEq;
 use std::net::UdpSocket;
 use std::sync::{Arc, Mutex};
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering::SeqCst;
 use std::thread;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use crossbeam_channel::internal::select;
 use crate::error::QuoteStreamServerError;
 use crossbeam_channel::Receiver;
 use quote_lib::quote::stockquote::StockQuote;
+use crate::server::QuoteServerThreadState;
 
 pub(crate) struct QuoteStream {
     socket: UdpSocket,
@@ -19,6 +22,7 @@ pub(crate) enum QuoteStreamResult {
 const UDP_READ_TIMEOUT_SECOND: u64 = 4;
 const UDP_SEND_PERIOD: u64 = 2;
 
+
 impl QuoteStream {
     pub fn new(bind_adr: &str) -> Result<Self, QuoteStreamServerError> {
         Ok(Self {
@@ -29,12 +33,16 @@ impl QuoteStream {
         })
     }
 
-    fn thread_update_tickers(r: Receiver<StockQuote>,
+    pub(crate) fn thread_update_tickers(r: Receiver<StockQuote>,
                              tickers: Arc<Mutex<Vec<StockQuote>>>,
-                             is_running: Arc<AtomicBool>,
-                             cancel_token: Arc<AtomicBool>){
+                             thread_state: Arc<Mutex<QuoteServerThreadState>>) -> Result<QuoteStreamResult, QuoteStreamServerError>{
         loop {
-            is_running.store(true, SeqCst);
+            if let Ok(mut state) = thread_state.lock() {
+                *state = QuoteServerThreadState::Running;
+            }
+            else {
+                return Err(QuoteStreamServerError::ChangeThreadStateError("Error change thread update tickers".to_string()));
+            }
             if let Ok(quote) = r.recv() {
                 if let Ok(mut tickers_guard) = tickers.lock(){
                     tickers_guard.iter_mut().for_each(|ticker| {
@@ -46,31 +54,27 @@ impl QuoteStream {
                     });
                 }
             }
-            if cancel_token.load(SeqCst) {
-                break;
+            if let Ok(mut state) = thread_state.lock() {
+                if *state == QuoteServerThreadState::Cancelled {
+                    *state = QuoteServerThreadState::Stopped;
+                    return Ok(QuoteStreamResult::Canceled);
+                }
             }
 
         }
-        is_running.store(false, SeqCst);
     }
 
-    pub fn thread_stream(udp_bind_adr: &str, client_adr: &str,
-                         r: Receiver<StockQuote>, tickers: Arc<Mutex<Vec<StockQuote>>>,
-                         is_running: Arc<AtomicBool>,
-                         cancel_token: Arc<AtomicBool>) -> Result<QuoteStreamResult, QuoteStreamServerError> {
+    pub(crate) fn thread_stream(udp_bind_adr: &str, client_adr: &str,
+                         tickers: Arc<Mutex<Vec<StockQuote>>>,
+                         thread_state: Arc<Mutex<QuoteServerThreadState>>) -> Result<QuoteStreamResult, QuoteStreamServerError> {
         let mut socket = Self::new(udp_bind_adr)?;
         socket.socket.set_read_timeout(Some(Duration::from_secs(UDP_READ_TIMEOUT_SECOND)))?;
-        is_running.store(true, SeqCst);
-        let is_running_update_tickers : Arc<AtomicBool> = Arc::new(AtomicBool::new(false));
-        let cancel_token_updater_tickers : Arc<AtomicBool> = Arc::new(AtomicBool::new(false));
-        let ticker_update = tickers.clone();
-        let is_run_update_ticker = is_running_update_tickers.clone();
-        let cancel_update_ticker = cancel_token_updater_tickers.clone();
-        let thread = thread::spawn(move || {
-            return QuoteStream::thread_update_tickers(r, ticker_update,
-                                                      is_run_update_ticker,
-                                                      cancel_update_ticker);
-        });
+        if let Ok(mut state) = thread_state.lock() {
+            *state = QuoteServerThreadState::Running;
+        }
+        else {
+            return Err(QuoteStreamServerError::ChangeThreadStateError("Error change thread stream state".to_string()));
+        }
         loop {
             thread::sleep(Duration::from_secs(UDP_SEND_PERIOD));
             if let Ok(tickers_guard) = tickers.lock() {
@@ -90,25 +94,18 @@ impl QuoteStream {
                 Err(_) => {
                     if SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs() -
                         socket.keep_alive_timestamp > 5 {
-                        break;
+                        if let Ok(mut state) = thread_state.lock() {
+                            *state = QuoteServerThreadState::Cancelled;
+                        }
                     }
                 }
             }
-            if cancel_token.load(SeqCst) {
-                while is_running_update_tickers.load(SeqCst) {
-                    cancel_token_updater_tickers.store(true, SeqCst);
+            if let Ok(mut state) = thread_state.lock() {
+                if *state == QuoteServerThreadState::Cancelled {
+                    *state = QuoteServerThreadState::Stopped;
+                    return Ok(QuoteStreamResult::Canceled);
                 }
-                break;
             }
         }
-        is_running.store(false, SeqCst);
-        if cancel_token.load(SeqCst) {
-            cancel_token.store(false, SeqCst);
-            Ok(QuoteStreamResult::Canceled)
-        }
-        else {
-            Err(QuoteStreamServerError::KeepAliveTimeoutError("KeepAlive timeout error".to_string()))
-        }
-
     }
 }
