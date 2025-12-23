@@ -1,11 +1,12 @@
 use std::thread;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
-use crossbeam_channel::{Receiver, Sender};
+use crossbeam_channel::{Sender};
 use quote_lib::quote::stockquote::{StockQuote};
 use crate::error::QuoteStreamServerError;
 
 const BIG_PRICE:f64 = 210.0;
-const LOW_PRICE:f64 = 120.0;
+const LOW_PRICE:f64 = 40.0;
+const WAIT_MILLISECOND_NEXT_GENERATION: u64 = 100;
 
 
 #[derive(Default)]
@@ -22,7 +23,7 @@ impl QuoteGenerator {
             // Популярные акции имеют больший объём
                 "AAPL" | "MSFT" | "TSLA" => BIG_PRICE + (rand::random::<f64>() * BIG_PRICE*0.05),
             // Обычные акции - средний объём
-            _ => LOW_PRICE + (rand::random::<f64>() * LOW_PRICE*0.1),
+            _ => LOW_PRICE + (rand::random::<f64>() * LOW_PRICE*0.9),
         };
         let volume = match ticker {
             // Популярные акции имеют больший объём
@@ -36,8 +37,7 @@ impl QuoteGenerator {
             price: last_price,
             volume,
             timestamp: SystemTime::now()
-                .duration_since(UNIX_EPOCH)
-                .unwrap()
+                .duration_since(UNIX_EPOCH).ok()?
                 .as_millis() as u64,
         })
     }
@@ -50,7 +50,7 @@ impl QuoteGenerator {
                    }
                }
             }
-            thread::sleep(Duration::from_millis(100));
+            thread::sleep(Duration::from_millis(WAIT_MILLISECOND_NEXT_GENERATION));
         }
     }
 }

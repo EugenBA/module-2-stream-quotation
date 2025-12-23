@@ -4,8 +4,6 @@ use std::io::Write;
 use std::net::{TcpListener, TcpStream};
 use std::str::SplitWhitespace;
 use std::sync::{Arc, Mutex};
-use std::sync::atomic::AtomicBool;
-use std::sync::atomic::Ordering::SeqCst;
 use crossbeam_channel::{bounded, Receiver};
 use std::thread;
 use std::thread::JoinHandle;
@@ -56,6 +54,7 @@ impl QuoteServer {
                 return "Error store subscribe tickers\n".to_string()
             }
             let subscribe_tickers = self.subscribe_tickers.clone();
+            let thread_state_ticker_update = thread_state_stream.clone();
             self.thread_state.push(thread_state_stream.clone());
             self.thread.push(thread::spawn(move || {
                 return QuoteStream::thread_stream(
@@ -65,7 +64,6 @@ impl QuoteServer {
                     thread_state_stream
                 )
             }));
-            let thread_state_ticker_update = Arc::new(Mutex::new(QuoteServerThreadState::Stopped));
             let subscribe_tickers_update = self.subscribe_tickers.clone();
             self.thread_state.push(thread_state_ticker_update.clone());
             self.thread.push(thread::spawn(move || {
@@ -126,10 +124,8 @@ impl QuoteServer {
                     }
                     let mut parts = input.split_whitespace();
                     let response = match parts.next() {
-                        Some("STREAM") => {
-                            self.start_quote_stream(udp_bind_adr.clone(), parts, receiver.clone())
-                        }
-                        Some("RESTREAM") => {
+                        Some("STREAM")  | Some("RESTREAM")=> {
+                            println!("Start stream");
                             self.stop_quote_stream();
                             self.start_quote_stream(udp_bind_adr.clone(), parts, receiver.clone())
                         }
@@ -164,7 +160,7 @@ impl QuoteServer {
     pub fn run_quote_server<R: Read>(r: &mut R, tcp_bind: &str, udp_bind: &str) -> Result<(), QuoteStreamServerError>{
         if let Ok(tickers) = StockQuote::get_tickers(r) {
             let (sender, receiver) = bounded::<StockQuote>(tickers.len());
-            let thr = thread::scope(|s| {
+            let _ = thread::scope(|s| {
                 s.spawn(|| {
                     QuoteGenerator::thread_generate(sender, &tickers)
                         .expect("Generator quote run error");

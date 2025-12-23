@@ -40,7 +40,7 @@ fn main() {
     let tickets_file = matches.get_one::<String>("tickets");*/
     let local = Some("127.0.0.1:8120");
     let udp = Some("127.0.0.1:55505");
-    let tickets_file = Some("//mnt/ssd_data/RustProject/module2-stream-quotation/tickets/tickets.txt");
+    let tickets_file = Some("/home/eugen/RustroverProjects/module-2-stream-quotation/tickets/tickets.txt");
     if let Some(local) = local && let Some(udp) = udp && let Some(tickets_file) = tickets_file {
         if !Path::new(&tickets_file).exists() {
             eprintln!("Файл {} не существует", tickets_file);

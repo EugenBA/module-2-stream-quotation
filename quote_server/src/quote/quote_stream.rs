@@ -1,11 +1,7 @@
-use std::cmp::PartialEq;
 use std::net::UdpSocket;
 use std::sync::{Arc, Mutex};
-use std::sync::atomic::AtomicBool;
-use std::sync::atomic::Ordering::SeqCst;
 use std::thread;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
-use crossbeam_channel::internal::select;
 use crate::error::QuoteStreamServerError;
 use crossbeam_channel::Receiver;
 use quote_lib::quote::stockquote::StockQuote;
@@ -84,7 +80,7 @@ impl QuoteStream {
             }
             let mut ping: Vec<u8> = Vec::new();
             match socket.socket.recv_from(&mut ping) {
-                Ok((size, src)) => {
+                Ok((size, _)) => {
                     if size > 0 && String::from_utf8_lossy(&ping[..size]).contains("PING") {
                         socket.keep_alive_timestamp = SystemTime::now()
                             .duration_since(UNIX_EPOCH)?

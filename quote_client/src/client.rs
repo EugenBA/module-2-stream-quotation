@@ -1,12 +1,10 @@
-use std::fmt::format;
-use std::io::{BufRead, BufReader, ErrorKind, Read, Write};
-use std::net::{Shutdown, SocketAddr, TcpStream, UdpSocket};
-use std::sync::{Arc, Mutex, RwLock};
+use std::io::{BufRead, BufReader, ErrorKind, Write};
+use std::net::{SocketAddr, TcpStream, UdpSocket};
+use std::sync::{Arc, Mutex};
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering::SeqCst;
 use std::thread;
 use std::time::{Duration};
-use clap::builder::Str;
 use socket2::{Domain, Protocol, Socket, Type};
 use quote_lib::quote::stockquote::StockQuote;
 use crate::error::QuoteClientError;
@@ -18,6 +16,11 @@ pub(crate) struct QuoteStreamClient {
 }
 const UDP_READ_TIMEOUT_SECOND: u64 = 4;
 const DURATION_WAIT_TO_CONNECT: u64 = 10;
+const DURATION_READ_TIMEOUT: u64 = 5;
+const TCP_KEEPALIVE_WITH_TIME: u64 = 10;
+const TCP_KEEPALIVE_WITH_INTERVAL: u64 = 5;
+
+const PING_SEND_THREAD_WAIT: u64 = 2;
 
 impl QuoteStreamClient {
     fn connect(server_addr: &str) -> Result<TcpStream, QuoteClientError> {
@@ -29,14 +32,14 @@ impl QuoteStreamClient {
         {
             socket.set_tcp_keepalive(
                 &socket2::TcpKeepalive::new()
-                    .with_time(Duration::from_secs(10))
-                    .with_interval(Duration::from_secs(5)),
+                    .with_time(Duration::from_secs(TCP_KEEPALIVE_WITH_TIME))
+                    .with_interval(Duration::from_secs(TCP_KEEPALIVE_WITH_INTERVAL)),
             )?;
         }
         socket.connect(&socket_addr.clone().into())?;
         let stream: TcpStream = socket.into();
         // тайм-аут на чтение
-        stream.set_read_timeout(Some(Duration::from_secs(5)))?;
+        stream.set_read_timeout(Some(Duration::from_secs(DURATION_READ_TIMEOUT)))?;
         Ok(stream)
     }
 
@@ -53,7 +56,7 @@ impl QuoteStreamClient {
                 send_addr = server_adr.to_string();
             }
             socket.send_to("PING\n".as_bytes(), &send_addr)?;
-            thread::sleep(Duration::from_secs(2));
+            thread::sleep(Duration::from_secs(PING_SEND_THREAD_WAIT));
         }
         is_running_ping.store(false, SeqCst);
         Ok(())

@@ -1,8 +1,6 @@
-use std::fmt::{Display};
 use std::io;
 use std::time::SystemTimeError;
 use thiserror::Error;
-use quote_lib::errors::QuoteGeneratorError;
 
 #[derive(Error, Debug)]
 pub(crate) enum QuoteStreamServerError
@@ -11,8 +9,6 @@ pub(crate) enum QuoteStreamServerError
     BadNetworkBindSocket(String),
     #[error("Bad network create TcpStream: {0}")]
     BadCreateTcpStream(String),
-    #[error("KeepAlive timeout error: {0}")]
-    KeepAliveTimeoutError(String),
     #[error("Generate quote error: {0}")]
     GeneratorQuoteError(String),
     #[error("Bad set system time: {0}")]

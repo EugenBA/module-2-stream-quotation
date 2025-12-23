@@ -6,8 +6,6 @@ pub(crate) enum QuoteClientError
 {
     #[error("Bad network bind socket: {0}")]
     BadNetworkBindSocket(String),
-    #[error("Bad network create Tcp Socket connect: {0}")]
-    BadTcpSocketConnect(String),
     #[error("Error parse network address: {0}")]
     AddressParseError(String),
 }
