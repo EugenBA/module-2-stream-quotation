@@ -11,6 +11,8 @@ use quote_lib::quote::stockquote::StockQuote;
 use crate::error::QuoteStreamServerError;
 use crate::quote::volume_generator::{QuoteGenerator};
 use crate::quote::quote_stream::{QuoteStream, QuoteStreamResult};
+use log;
+use log::error;
 
 #[derive(Default)]
 pub(crate) struct QuoteServer{
@@ -88,12 +90,9 @@ impl QuoteServer {
             line.clear();
             match reader.read_line(&mut line) {
                 Ok(0) => {
-                    println!("Ok(0)");
-                    self.stop_quote_stream();
                     return;
                 }
                 Ok(_) => {
-                    println!("Ok(_)");
                     let input = line.trim();
                     if input.is_empty() {
                         let _ = writer.flush();
@@ -102,7 +101,7 @@ impl QuoteServer {
                     let mut parts = input.split_whitespace();
                     let response = match parts.next() {
                         Some("STREAM")  | Some("RESTREAM")=> {
-                            println!("Start stream");
+                            log::info!("start stream");
                             self.stop_quote_stream();
                             self.start_quote_stream(udp_bind_adr.clone(), parts, receiver.clone())
                         }
@@ -124,12 +123,12 @@ impl QuoteServer {
                 }
                 Err(_) => {
                     // ошибка чтения — закрываем
-                    println!("Err(-)");
-                    self.stop_quote_stream();
-                    return;
+                    log::error!("error tcp handle");
+                    break;
                 }
             }
         }
+        self.stop_quote_stream();
     }
 
     pub fn run_quote_server<R: Read>(r: &mut R, tcp_bind: &str, udp_bind: &str) -> Result<(), QuoteStreamServerError>{
@@ -142,7 +141,7 @@ impl QuoteServer {
                 });
                 s.spawn(||{
                     let listener = TcpListener::bind(tcp_bind)?;
-                    println!("{}", format!("Server listening on: {}", tcp_bind.to_string()));
+                    log::info!("{}", format!("server listening on: {}", tcp_bind.to_string()));
                     for stream in listener.incoming() {
                         match stream {
                             Ok(stream) => {

@@ -3,11 +3,34 @@ mod quote;
 mod server;
 mod error;
 
+
 use std::fs::File;
 use std::io::BufReader;
 use std::path::Path;
 use crate::server::{QuoteServer};
 use clap::{Arg, Command};
+use env_logger::{Builder, Target};
+use log::LevelFilter;
+use std::io::Write;
+
+fn setup_logger() {
+    Builder::new()
+        .format(|buf, record| {
+            writeln!(
+                buf,
+                "{} [{}] {}:{} - {}",
+                chrono::Local::now().format("%Y-%m-%d %H:%M:%S%.3f"),
+                record.level(),
+                record.file().unwrap_or("unknown"),
+                record.line().unwrap_or(0),
+                record.args()
+            )
+        })
+        .filter(None, LevelFilter::Debug) // Уровень по умолчанию
+        .target(Target::Stdout) // Вывод в stdout вместо stderr
+        .write_style(env_logger::WriteStyle::Always) // Всегда использовать цвета
+        .init();
+}
 
 fn main() {
     /*let matches = Command::new("quote-server")
@@ -38,6 +61,7 @@ fn main() {
     let local = matches.get_one::<String>("local");
     let udp = matches.get_one::<String>("udp");
     let tickets_file = matches.get_one::<String>("tickets");*/
+    setup_logger();
     let local = Some("127.0.0.1:8120");
     let udp = Some("127.0.0.1:55505");
     let tickets_file = Some("/home/eugen/RustroverProjects/module-2-stream-quotation/tickets/tickets.txt");

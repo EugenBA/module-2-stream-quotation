@@ -6,6 +6,7 @@ use crate::error::QuoteStreamServerError;
 use crossbeam_channel::Receiver;
 use quote_lib::quote::stockquote::StockQuote;
 use crate::server::QuoteServerThreadState;
+use log;
 
 pub(crate) struct QuoteStream {
     socket: UdpSocket,
@@ -37,7 +38,7 @@ impl QuoteStream {
         } else {
             return Err(QuoteStreamServerError::ChangeThreadStateError("Error change thread update state".to_string()));
         }
-        println!("Thread update tickers run");
+        log::debug!("thread update tickers: run");
         loop {
             if let Ok(quote) = r.recv() {
                 if let Ok(mut tickers_guard) = tickers.lock() {
@@ -57,7 +58,7 @@ impl QuoteStream {
                 }
             }
         }
-        println!("Thread update tickers stop");
+        log::debug!("thread update tickers: stop");
         Ok(QuoteStreamResult::Canceled)
     }
 
@@ -71,7 +72,7 @@ impl QuoteStream {
         } else {
             return Err(QuoteStreamServerError::ChangeThreadStateError("Error change thread stream state".to_string()));
         }
-        println!("Thread stream run");
+        log::debug!("thread stream quotes: run");
         let subscribe_tickers_update = tickers.clone();
         let thread_state_updater = Arc::new(Mutex::new(QuoteServerThreadState::Stopped));
         let thread_state_ticker_update = thread_state_updater.clone();
@@ -115,10 +116,10 @@ impl QuoteStream {
                 *state = QuoteServerThreadState::Cancelled;
                 break;
             }
-            println!("Wait stop updater...");
+            log::debug!("wait stop updater...");
             thread::sleep(Duration::from_secs(1));
         }
-        println!("Thread stream stop");
+        log::debug!("thread stream quotes: stop");
         Ok(QuoteStreamResult::Canceled)
     }
 }

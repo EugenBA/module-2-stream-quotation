@@ -8,6 +8,7 @@ use std::time::{Duration};
 use socket2::{Domain, Protocol, Socket, Type};
 use quote_lib::quote::stockquote::StockQuote;
 use crate::error::QuoteClientError;
+use log;
 
 #[derive(Default)]
 pub(crate) struct QuoteStreamClient {
@@ -69,7 +70,7 @@ impl QuoteStreamClient {
         let mut udp_src_addr = String::new();
         loop {
             if !is_connected {
-                println!("Try connecting to server at {}", server_adr);
+                log::info!("try connecting to server at {}", server_adr);
                 udp_src_addr = "".to_string();
                 while self.is_running_ping.load(SeqCst) {
                     self.is_running_ping.store(false, SeqCst);
@@ -95,7 +96,7 @@ impl QuoteStreamClient {
                                 },
                                 Err(e) if e.kind() == ErrorKind::WouldBlock => {
                                     result.clear();
-                                    println!("Waiting for server response...");
+                                    log::error!("waiting for server response...");
                                     thread::sleep(Duration::from_millis(DURATION_WAIT_TO_CONNECT));
                                     continue;
                                 },
@@ -143,14 +144,14 @@ impl QuoteStreamClient {
                                 )
                             });
                             while !self.is_running_ping.load(SeqCst) {
-                                println!("Waiting starting ping quote server...");
+                                log::warn!("waiting starting ping quote server...");
                                 thread::sleep(Duration::from_millis(DURATION_WAIT_TO_CONNECT));
                             }
                         }
                     }
                 }
                 Err(e) => {
-                    println!("Error read quote stream: {}", e);
+                    log::error!("error read quote stream: {}", e);
                     is_connected = false;
                 }
             }
