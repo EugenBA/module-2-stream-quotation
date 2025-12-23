@@ -14,8 +14,8 @@ use crate::quote::quote_stream::{QuoteStream, QuoteStreamResult};
 
 #[derive(Default)]
 pub(crate) struct QuoteServer{
-    thread: Vec<JoinHandle<Result<QuoteStreamResult, QuoteStreamServerError>>>,
-    thread_state: Vec<Arc<Mutex<QuoteServerThreadState>>>,
+    thread: Option<JoinHandle<Result<QuoteStreamResult, QuoteStreamServerError>>>,
+    thread_state: Option<Arc<Mutex<QuoteServerThreadState>>>,
     subscribe_tickers: Arc<Mutex<Vec<StockQuote>>>,
  }
 
@@ -24,8 +24,7 @@ pub(crate) struct QuoteServer{
 pub(crate) enum QuoteServerThreadState{
     Running,
     Cancelled,
-    Stopped,
-    HalfState
+    Stopped
 }
 
 
@@ -54,50 +53,25 @@ impl QuoteServer {
                 return "Error store subscribe tickers\n".to_string()
             }
             let subscribe_tickers = self.subscribe_tickers.clone();
-            let thread_state_ticker_update = thread_state_stream.clone();
-            self.thread_state.push(thread_state_stream.clone());
-            self.thread.push(thread::spawn(move || {
+            self.thread_state = Some(thread_state_stream.clone());
+            self.thread = Some(thread::spawn(move || {
                 return QuoteStream::thread_stream(
                     &udp_bind_adr,
                     &client_adr,
+                    receiver,
                     subscribe_tickers,
                     thread_state_stream
                 )
-            }));
-            let subscribe_tickers_update = self.subscribe_tickers.clone();
-            self.thread_state.push(thread_state_ticker_update.clone());
-            self.thread.push(thread::spawn(move || {
-                return QuoteStream::thread_update_tickers(receiver, subscribe_tickers_update,
-                                                          thread_state_ticker_update);
             }));
             "OK Stream\n".to_string()
         }
         else { "Error command stream\n".to_string() }
 
     }
-    fn stop_quote_stream(&mut self){
-        for thread in &mut self.thread_state{
-            if let Ok(mut state) = thread.lock() {
-                *state = QuoteServerThreadState::Cancelled;
-            }
-        }
-    }
-    fn state_thread(&self) -> QuoteServerThreadState{
-        let mut count_stoped = 0;
-        for thread in &self.thread_state{
-            if let Ok(state) = thread.lock() &&
-                *state == QuoteServerThreadState::Stopped{
-                count_stoped += 1;
-            }
-        }
-        match count_stoped  {
-            0 => QuoteServerThreadState::Running,
-            _ => {
-                if count_stoped == self.thread_state.len() {
-                    return QuoteServerThreadState::Stopped;
-                }
-                QuoteServerThreadState::HalfState
-            }
+    fn stop_quote_stream(&mut self) {
+        if let Some(thread_state) = &self.thread_state &&
+            let Ok(mut state) = thread_state.lock() {
+            *state = QuoteServerThreadState::Cancelled;
         }
     }
 
@@ -114,9 +88,12 @@ impl QuoteServer {
             line.clear();
             match reader.read_line(&mut line) {
                 Ok(0) => {
+                    println!("Ok(0)");
+                    self.stop_quote_stream();
                     return;
                 }
                 Ok(_) => {
+                    println!("Ok(_)");
                     let input = line.trim();
                     if input.is_empty() {
                         let _ = writer.flush();
@@ -130,7 +107,7 @@ impl QuoteServer {
                             self.start_quote_stream(udp_bind_adr.clone(), parts, receiver.clone())
                         }
                         Some("STOP") => {
-                            if self.thread_state.len() > 0 {
+                            if let Some(_) = self.thread_state{
                                 self.stop_quote_stream();
                                 "OK Stop\n".to_string()
                             }
@@ -147,12 +124,10 @@ impl QuoteServer {
                 }
                 Err(_) => {
                     // ошибка чтения — закрываем
+                    println!("Err(-)");
                     self.stop_quote_stream();
                     return;
                 }
-            }
-            if self.state_thread() == QuoteServerThreadState::HalfState{
-                self.stop_quote_stream();
             }
         }
     }
