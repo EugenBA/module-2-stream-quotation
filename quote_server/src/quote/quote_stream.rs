@@ -16,14 +16,15 @@ pub(crate) struct QuoteStream {
 pub(crate) enum QuoteStreamResult {
     Canceled,
 }
-const UDP_READ_TIMEOUT_SECOND: u64 = 4;
+const UDP_READ_TIMEOUT_SECOND: u64 = 6;
 const UDP_SEND_PERIOD: u64 = 2;
+const PING_READ_TIMEOUT: u64 = 5;
 
 
 impl QuoteStream {
-    pub fn new(bind_adr: &str) -> Result<Self, QuoteStreamServerError> {
+    pub fn new(udp_socket: UdpSocket) -> Result<Self, QuoteStreamServerError> {
         Ok(Self {
-            socket: UdpSocket::bind(bind_adr)?,
+            socket: udp_socket,
             keep_alive_timestamp: SystemTime::now()
                 .duration_since(UNIX_EPOCH)?
                 .as_secs(),
@@ -62,10 +63,10 @@ impl QuoteStream {
         Ok(QuoteStreamResult::Canceled)
     }
 
-    pub(crate) fn thread_stream(udp_bind_adr: &str, client_adr: &str, receiver: Receiver<StockQuote>,
+    pub(crate) fn thread_stream(udp_bind_adr: UdpSocket, client_adr: &str, receiver: Receiver<StockQuote>,
                                 tickers: Arc<Mutex<Vec<StockQuote>>>,
                                 thread_state: Arc<Mutex<QuoteServerThreadState>>) -> Result<QuoteStreamResult, QuoteStreamServerError> {
-        let mut socket = Self::new(udp_bind_adr)?;
+        let mut socket= Self::new(udp_bind_adr)?;
         socket.socket.set_read_timeout(Some(Duration::from_secs(UDP_READ_TIMEOUT_SECOND)))?;
         if let Ok(mut state) = thread_state.lock() {
             *state = QuoteServerThreadState::Running;
@@ -81,28 +82,29 @@ impl QuoteStream {
                                                       thread_state_ticker_update);
         });
         loop {
-            thread::sleep(Duration::from_secs(UDP_SEND_PERIOD));
             if let Ok(tickers_guard) = tickers.lock() {
                 tickers_guard.iter().for_each(|tickers| {
                     let _ = socket.socket.send_to(&tickers.to_bytes(), client_adr);
                 });
             }
-            let mut ping: Vec<u8> = Vec::new();
+            let mut ping= [0u8; 1024];
             match socket.socket.recv_from(&mut ping) {
-                Ok((size, _)) => {
-                    if size > 0 && String::from_utf8_lossy(&ping[..size]).contains("PING") {
+                Ok((size, src)) => {
+                    if size > 0 && String::from_utf8_lossy(&ping[..size]).contains("PING") &&
+                        client_adr == src.to_string() {
                         socket.keep_alive_timestamp = SystemTime::now()
                             .duration_since(UNIX_EPOCH)?
-                            .as_secs()
+                            .as_secs();
                     }
                 }
-                Err(_) => {
-                    if SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs() -
-                        socket.keep_alive_timestamp > 5 {
-                        if let Ok(mut state) = thread_state.lock() {
-                            *state = QuoteServerThreadState::Cancelled;
-                        }
-                    }
+                Err(e) => {
+                    log::error!("Error receiving ping message from socket: {}", e);
+                }
+            }
+            if SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs() -
+                socket.keep_alive_timestamp > PING_READ_TIMEOUT {
+                if let Ok(mut state) = thread_state.lock() {
+                    *state = QuoteServerThreadState::Cancelled;
                 }
             }
             if let Ok(state) = thread_state.lock() {
@@ -110,6 +112,7 @@ impl QuoteStream {
                     break;
                 }
             }
+            thread::sleep(Duration::from_secs(UDP_SEND_PERIOD));
         }
         loop {
             if let Ok(mut state) = thread_state_updater.lock() {

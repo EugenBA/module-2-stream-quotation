@@ -1,7 +1,7 @@
 use std::io::{BufRead, Read};
 use std::io::BufReader;
 use std::io::Write;
-use std::net::{TcpListener, TcpStream};
+use std::net::{TcpListener, TcpStream, UdpSocket};
 use std::str::SplitWhitespace;
 use std::sync::{Arc, Mutex};
 use crossbeam_channel::{bounded, Receiver};
@@ -41,7 +41,7 @@ impl QuoteServer {
         None
     }
 
-    fn start_quote_stream(&mut self, udp_bind_adr: String,
+    fn start_quote_stream(&mut self, udp_socket: UdpSocket,
                           mut cmd: SplitWhitespace,
                           receiver: Receiver<StockQuote>) -> String {
         if let Some((client_adr, tickers)) = QuoteServer::parse_cmd_stream(&mut cmd)
@@ -58,7 +58,7 @@ impl QuoteServer {
             self.thread_state = Some(thread_state_stream.clone());
             self.thread = Some(thread::spawn(move || {
                 return QuoteStream::thread_stream(
-                    &udp_bind_adr,
+                    udp_socket,
                     &client_adr,
                     receiver,
                     subscribe_tickers,
@@ -77,11 +77,10 @@ impl QuoteServer {
         }
     }
 
-    fn handle_client(&mut self, udp_bind_adr: String, stream: TcpStream, receiver: Receiver<StockQuote>) {
+    fn handle_client(&mut self, udp_socket: UdpSocket, stream: TcpStream, receiver: Receiver<StockQuote>) {
         // клонируем stream: один экземпляр для чтения (обёрнут в BufReader), другой — для записи
-        let mut writer = stream.try_clone().expect("failed to clone stream");
+        let mut writer = stream.try_clone().expect("failed to clone stream tcp");
         let mut reader = BufReader::new(stream);
-
         // send initial prompt
         let _ = writer.write_all(b"Welcome to quotation stream!\n");
         let _ = writer.flush();
@@ -101,9 +100,10 @@ impl QuoteServer {
                     let mut parts = input.split_whitespace();
                     let response = match parts.next() {
                         Some("STREAM")  | Some("RESTREAM")=> {
+                            let udp = udp_socket.try_clone().expect("failed to clone stream udp");
                             log::info!("start stream");
                             self.stop_quote_stream();
-                            self.start_quote_stream(udp_bind_adr.clone(), parts, receiver.clone())
+                            self.start_quote_stream(udp, parts, receiver.clone())
                         }
                         Some("STOP") => {
                             if let Some(_) = self.thread_state{
@@ -141,12 +141,13 @@ impl QuoteServer {
                 });
                 s.spawn(||{
                     let listener = TcpListener::bind(tcp_bind)?;
+                    let udp_bind = UdpSocket::bind(udp_bind)?;
                     log::info!("{}", format!("server listening on: {}", tcp_bind.to_string()));
                     for stream in listener.incoming() {
                         match stream {
                             Ok(stream) => {
                                 let value = receiver.clone();
-                                let udb_bind_adr = udp_bind.to_string().clone();
+                                let udb_bind_adr = udp_bind.try_clone()?;
                                 thread::spawn(move || {
                                     let mut quote_server = QuoteServer::default();
                                     quote_server.handle_client(udb_bind_adr, stream, value);

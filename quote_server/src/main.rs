@@ -13,7 +13,7 @@ use env_logger::{Builder, Target};
 use log::LevelFilter;
 use std::io::Write;
 
-fn setup_logger() {
+fn setup_logger(level: LevelFilter) {
     Builder::new()
         .format(|buf, record| {
             writeln!(
@@ -26,53 +26,77 @@ fn setup_logger() {
                 record.args()
             )
         })
-        .filter(None, LevelFilter::Debug) // Уровень по умолчанию
+        .filter(None, level) // Уровень по умолчанию
         .target(Target::Stdout) // Вывод в stdout вместо stderr
         .write_style(env_logger::WriteStyle::Always) // Всегда использовать цвета
         .init();
 }
 
 fn main() {
-    /*let matches = Command::new("quote-server")
+    let matches = Command::new("quote-server")
         .version("0.1.0")
         .about("Demo quote stream server")
         .arg(
-            Arg::new("local")
-                .short('l')
-                .long("local")
-                .help("Local address: host:port")
+            Arg::new("server-addr")
+                .short('s')
+                .long("server-addr")
+                .help("Local server address: host:port")
                 .required(true)
         )
         .arg(
-            Arg::new("udp")
+            Arg::new("udp-port")
                 .short('u')
-                .long("udp")
-                .help("Server udp bind address: host:port")
+                .long("udp-port")
+                .help("Server udp bport")
                 .required(true)
         )
         .arg(
-            Arg::new("tickets")
+            Arg::new("tickers-files")
                 .short('t')
-                .long("tickets")
-                .help("File path tickets file")
+                .long("tickers")
+                .help("File path tickers file")
                 .required(true)
+        )
+        .arg(
+            Arg::new("log-level")
+                .short('l')
+                .long("log-level")
+                .help("Log level")
+                .default_value("INFO")
+                .required(false)
         )
         .get_matches();
-    let local = matches.get_one::<String>("local");
-    let udp = matches.get_one::<String>("udp");
-    let tickets_file = matches.get_one::<String>("tickets");*/
-    setup_logger();
-    let local = Some("127.0.0.1:8120");
-    let udp = Some("127.0.0.1:55505");
-    let tickets_file = Some("/home/eugen/RustroverProjects/module-2-stream-quotation/tickets/tickets.txt");
-    if let Some(local) = local && let Some(udp) = udp && let Some(tickets_file) = tickets_file {
-        if !Path::new(&tickets_file).exists() {
-            eprintln!("Файл {} не существует", tickets_file);
+    let server_addr = matches.get_one::<String>("server-addr");
+    let udp_port = matches.get_one::<String>("udp-port");
+    let tickers_file = matches.get_one::<String>("tickers-files");
+    let log_level = matches.get_one::<String>("log-level");
+   // let local = Some("127.0.0.1:8120");
+   // let udp = Some("127.0.0.1:55505");
+   // let tickets_file = Some("/home/eugen/RustroverProjects/module-2-stream-quotation/tickets/tickets.txt");
+    if let Some(server_addr) = server_addr &&
+        let Some(udp_port) = udp_port && let Some(tickers_file) = tickers_file &&
+        let Some(log_level) = log_level{
+        if !Path::new(tickers_file).exists() {
+            eprintln!("File {} not exists", tickers_file);
             return;
         }
-        let mut reader = BufReader::new(File::open(tickets_file).unwrap());
+        let level = {
+            match log_level.as_ref() {
+                "DEBUG" => LevelFilter::Debug,
+                "ERROR" => LevelFilter::Error,
+                "WARN" => LevelFilter::Warn,
+                _ => LevelFilter::Info,
+            }
+        };
+        setup_logger(level);
+        let host_port: Vec<&str> = server_addr.split(":").collect();
+        if host_port.len() < 2{
+            eprintln!("Error address server");
+        }
+        let udp_addr = host_port[0].to_owned()  + ":" + udp_port;
+        let mut reader = BufReader::new(File::open(tickers_file).unwrap());
         if let Err(quote_server) =
-            QuoteServer::run_quote_server(&mut reader, local, udp) {
+            QuoteServer::run_quote_server(&mut reader, server_addr, &udp_addr) {
             println!("Error: {}", quote_server);
         }
     }
