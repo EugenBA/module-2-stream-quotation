@@ -12,7 +12,6 @@ use crate::error::QuoteStreamServerError;
 use crate::quote::volume_generator::{QuoteGenerator};
 use crate::quote::quote_stream::{QuoteStream, QuoteStreamResult};
 use log;
-use log::error;
 
 #[derive(Default)]
 pub(crate) struct QuoteServer{
