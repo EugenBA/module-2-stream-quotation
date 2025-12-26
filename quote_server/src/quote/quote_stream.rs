@@ -31,9 +31,11 @@ impl QuoteStream {
         })
     }
 
-    pub(crate) fn thread_update_tickers(r: Receiver<StockQuote>,
+    fn thread_update_tickers(r: Receiver<StockQuote>,
                                         tickers: Arc<Mutex<Vec<StockQuote>>>,
                                         thread_state: Arc<Mutex<QuoteServerThreadState>>) -> Result<QuoteStreamResult, QuoteStreamServerError> {
+        //Метод обновления котировк
+        //Работает циклически и обновляет данные котировок
         if let Ok(mut state) = thread_state.lock() {
             *state = QuoteServerThreadState::Running;
         } else {
@@ -66,6 +68,8 @@ impl QuoteStream {
     pub(crate) fn thread_stream(udp_bind_adr: UdpSocket, client_adr: &str, receiver: Receiver<StockQuote>,
                                 tickers: Arc<Mutex<Vec<StockQuote>>>,
                                 thread_state: Arc<Mutex<QuoteServerThreadState>>) -> Result<QuoteStreamResult, QuoteStreamServerError> {
+        //Метод стриммиинга - отправляет данные клиенту, запускает поток обновления данных
+        //отсанавливает поток обновления котировк в случает не получаени данных ping от клиента
         let mut socket= Self::new(udp_bind_adr)?;
         socket.socket.set_read_timeout(Some(Duration::from_secs(UDP_READ_TIMEOUT_SECOND)))?;
         if let Ok(mut state) = thread_state.lock() {
@@ -81,6 +85,7 @@ impl QuoteStream {
             return QuoteStream::thread_update_tickers(receiver, subscribe_tickers_update,
                                                       thread_state_ticker_update);
         });
+        //основной цикл отправления данных клиенту
         loop {
             if let Ok(tickers_guard) = tickers.lock() {
                 tickers_guard.iter().for_each(|tickers| {
@@ -114,6 +119,7 @@ impl QuoteStream {
             }
             thread::sleep(Duration::from_secs(UDP_SEND_PERIOD));
         }
+        //ожидание остановки потока обновления котировок
         loop {
             if let Ok(mut state) = thread_state_updater.lock() {
                 *state = QuoteServerThreadState::Cancelled;

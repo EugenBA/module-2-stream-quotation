@@ -77,6 +77,7 @@ impl QuoteServer {
     }
 
     fn handle_client(&mut self, udp_socket: UdpSocket, stream: TcpStream, receiver: Receiver<StockQuote>) {
+        // поток для ответ хапрос клиента
         // клонируем stream: один экземпляр для чтения (обёрнут в BufReader), другой — для записи
         let mut writer = stream.try_clone().expect("failed to clone stream tcp");
         let mut reader = BufReader::new(stream);
@@ -88,9 +89,11 @@ impl QuoteServer {
             line.clear();
             match reader.read_line(&mut line) {
                 Ok(0) => {
+                    //соединие закрыто
                     return;
                 }
                 Ok(_) => {
+                    //обработка комманды
                     let input = line.trim();
                     if input.is_empty() {
                         let _ = writer.flush();
@@ -131,13 +134,16 @@ impl QuoteServer {
     }
 
     pub fn run_quote_server<R: Read>(r: &mut R, tcp_bind: &str, udp_bind: &str) -> Result<(), QuoteStreamServerError>{
+        //запуск сервера котирово - ожидание запроса клиента, и создание потока для обработк запроса
         if let Ok(tickers) = StockQuote::get_tickers(r) {
             let (sender, receiver) = bounded::<StockQuote>(tickers.len());
+            //поток генрации коитровок (генирирует котировоки и отправляет их в канал)
             let _ = thread::scope(|s| {
                 s.spawn(|| {
                     QuoteGenerator::thread_generate(sender, &tickers)
                         .expect("Generator quote run error");
                 });
+                //поток ответа от клиента
                 s.spawn(||{
                     let listener = TcpListener::bind(tcp_bind)?;
                     let udp_bind = UdpSocket::bind(udp_bind)?;

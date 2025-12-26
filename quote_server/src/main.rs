@@ -91,6 +91,7 @@ fn main() {
         };
         setup_logger(level);
         let host_port: Vec<&str> = server_addr.split(":").collect();
+        //разбираем адресс на данные хост, порт
         if host_port.len() < 2{
             eprintln!("Error address server");
         }
