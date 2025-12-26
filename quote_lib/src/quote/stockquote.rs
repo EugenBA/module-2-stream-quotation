@@ -78,18 +78,18 @@ impl StockQuote {
     }
 
     /// ```rust
-    /// Converts a comma-separated string of stock ticker symbols into a vector of `StockQuote` objects.
+    /// use quote_lib::quote::stockquote::StockQuote;
+    /// Преобразование тикеров из строки разделенных символом "," в структуру StockQuote
     ///
-    /// # Arguments
+    /// # Аргументы
     ///
-    /// * `tickers` - A string slice containing comma-separated stock ticker symbols (e.g., "AAPL,MSFT,GOOG").
+    /// * `tickers` - строка с именами тикеров с разделителм запята (e.g., "AAPL,MSFT,GOOG").
     ///
-    /// # Returns
+    /// # Возращает
     ///
-    /// A `Vec<StockQuote>` where each element is created by invoking the `StockQuote::new`
-    /// function on the individual ticker symbols extracted from the input string.
+    /// Возращает `Vec<StockQuote>`
     ///
-    /// # Example
+    /// # Пример
     ///
     /// ```
     /// let tickers = "AAPL,MSFT,GOOG";
@@ -104,59 +104,52 @@ impl StockQuote {
     }
 
     /// ```rust
-    ///     /**
-    ///      * Reads ticker symbols from a given readable source, parses them into a vector,
-    ///      * and returns a comma-separated string of the tickers.
-    ///      *
-    ///      * # Type Parameters
-    ///      * - `R`: A type that implements the `Read` trait, representing the readable input source.
-    ///      *
-    ///      * # Parameters
-    ///      * - `r`: A mutable reference to the input source implementing `Read`. This serves
-    ///      *        as the source from which ticker data will be read.
-    ///      *
-    ///      * # Returns
-    ///      * - `Ok(String)`: A comma-separated string of ticker symbols if parsing and
-    ///      *                 reading are successful.
-    ///      * - `Err(QuoteGeneratorError)`: An error if reading the input or parsing the tickers fails.
-    ///      *
-    ///      * # Errors
-    ///      * This function will return a `QuoteGeneratorError` if:
-    ///      * - The input source cannot be read.
-    ///      * - The ticker data cannot be parsed correctly.
-    ///      *
-    ///      * # Dependencies
-    ///      * This function depends on `Self::get_tickers`, which extracts and returns
-    ///      * the tickers in a `Vec<String>`.
-    ///      *
-    ///      * # Example
-    ///      * ```
-    ///      * use std::io::Cursor;
-    ///      *
-    ///      * let data = "AAPL\nMSFT\nGOOGL\n";
-    ///      * let mut cursor = Cursor::new(data);
-    ///      *
-    ///      * let result = YourStruct::get_tickers_string_from_file(&mut cursor);
-    ///      * assert_eq!(result.unwrap(), "AAPL,MSFT,GOOGL");
-    ///      * ```
-    ///      */
+    ///
+    ///  Читает данные котировок из потока (реализующий трейт read) и возращает строк с именами котировк разделенных запятой
+    ///
+    ///  # Тип параметра
+    ///  * - `R`: тип реализующий трейт Read
+    ///
+    ///  # Параметр
+    ///  * - `r`: мутабельная ссылка на тип реализующий трейт Read
+    ///
+    ///  # Возращает
+    ///  * - `Ok(String)`: имена котировк разделенных запаятой
+    ///  * - `Err(QuoteGeneratorError)`: ошибку при парсинге данных
+    ///
+    ///  # Errors
+    ///  * Ошибки чтения
+    ///  * Ошибки парсинга
+    ///
+    ///  # Пример
+    ///  ```
+    ///  use std::io::Cursor;
+    ///
+    ///  let data = "AAPL\nMSFT\nGOOGL\n";
+    ///  let mut cursor = Cursor::new(data);
+    ///
+    ///  let result = YourStruct::get_tickers_string_from_file(&mut cursor);
+    ///  assert_eq!(result.unwrap(), "AAPL,MSFT,GOOGL");
+    ///   ```
+    ///
     /// ```
     pub fn get_tickers_string_from_file<R:Read>(r:&mut R) -> Result<String, QuoteGeneratorError>{
         let vec = Self::get_tickers(r)?;
         Ok(vec.join(","))
     }
    /// ```rust
-   /// Converts the fields of the struct into a formatted `String`.
+   /// use quote_lib::quote::stockquote::StockQuote;
+   /// Конвертация структуры StockQuote в строку с разделителем "|"
    ///
-   /// This method serializes the values of the `ticker`, `price`, `volume`,
-   /// and `timestamp` fields of the struct into a pipe (`|`)-separated string format.
+   /// Метод сереализует структуру в строку с разделителями
    ///
-   /// # Returns
    ///
-   /// A `String` containing the serialized representation of the struct's fields
-   /// in the format `"<ticker>|<price>|<volume>|<timestamp>"`.
+   /// # Возращает
    ///
-   /// # Example
+   /// Строку с разделителями формата:
+   /// `"<ticker>|<price>|<volume>|<timestamp>"`.
+   ///
+   /// # Пример
    ///
    /// ```
    /// let stock = Stock {
@@ -177,27 +170,17 @@ impl StockQuote {
     }
 
     /// ```rust
-    /// Constructs an instance of `StockQuote` from a formatted string.
+    /// Создает экземпляр струтуры StockQuote из строки с разделителем "|"
     ///
-    /// The input string is expected to contain exactly 4 components separated by the `|` character,
-    /// representing the `ticker`, `price`, `volume`, and `timestamp` fields of a `StockQuote`,
-    /// in that order. The method will also remove any newline characters (`\n`) from the input
-    /// string before parsing.
     ///
-    /// # Parameters
-    /// - `s`: A reference to a string slice containing the data to be parsed into a `StockQuote`.
+    /// # Параметр
+    /// - `s`: строковой тип с формата `"<ticker>|<price>|<volume>|<timestamp>"`.
     ///
-    /// # Returns
-    /// - `Some(StockQuote)` if the input string has the correct format and all components can be
-    ///   successfully parsed:
-    ///   - `ticker` is taken as-is from the first component.
-    ///   - `price` is parsed as a `f64` from the second component.
-    ///   - `volume` is parsed as a `u32` from the third component.
-    ///   - `timestamp` is parsed as a `u64` from the fourth component.
-    /// - `None` if the input string has fewer than 4 components or if any of the components fail
-    ///   to parse into their expected types.
+    /// # Возращает
+    /// - `Some(StockQuote)`если десериализация прошла без ошибок
+    /// - `None` если формат входных данных не соовествует
     ///
-    /// # Examples
+    /// # Пример
     ///
     /// ```rust
     /// let input = "AAPL|157.92|300000|1697071010";
@@ -230,25 +213,13 @@ impl StockQuote {
     }
 
     /// ```rust
-    /// Converts the current instance of the object into a vector of bytes (`Vec<u8>`).
+    /// Сереализует структуру StockQuote в батовый вектор (`Vec<u8>`).
     ///
-    /// # Structure of the Output:
-    /// The serialized byte vector represents the object's properties concatenated
-    /// with specific delimiters in the following format:
     ///
-    /// `ticker|price|volume|timestamp\n`
+    /// # Возращает:
+    /// `Vec<u8>` вектор байт
     ///
-    /// - `ticker`: The string representation of the ticker (e.g., "AAPL").
-    /// - `price`: The string representation of the price (e.g., "150.34").
-    /// - `volume`: The string representation of the volume (e.g., "2000").
-    /// - `timestamp`: The string representation of the timestamp (e.g., "1672531200").
-    /// - Fields are separated by a `|` delimiter.
-    /// - The serialized data ends with a newline character (`\n`).
-    ///
-    /// # Returns:
-    /// A `Vec<u8>` containing the serialized representation of the object.
-    ///
-    /// # Example:
+    /// # Пример:
     /// ```rust
     /// let data = MyStruct {
     ///     ticker: "AAPL".to_string(),
@@ -258,13 +229,6 @@ impl StockQuote {
     /// };
     /// let serialized = data.to_bytes();
     /// assert_eq!(String::from_utf8(serialized).unwrap(), "AAPL|150.34|2000|1672531200\n");
-    /// ```
-    ///
-    /// # Notes:
-    /// - It's expected that the fields `ticker`, `price`, `volume`, and `timestamp`
-    ///   are accessible and can be converted into their byte-string representation.
-    /// - Proper error handling or validation of the object's fields is not implemented
-    ///   in this function and must be ensured prior to calling it.
     /// ```
     pub fn to_bytes(&self) -> Vec<u8> {
         let mut bytes = Vec::new();
