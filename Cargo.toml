@@ -1,0 +1,18 @@
+# stream-quatation/Cargo.toml
+[workspace]
+members = [
+    "quote_client",
+    "quote_server",
+    "quote_lib",
+]
+
+# Общие настройки для всех членов workspace
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+authors = ["Eugen Batts"]
+license = "MIT"
+
+
+[workspace.dependencies]
+thiserror = "2.0"
