@@ -6,7 +6,7 @@ use std::io::Read;
 use crate::errors::QuoteGeneratorError;
 
 /// Структура для хранения данных котировок
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct StockQuote {
     /// название котировки
     pub ticker: String,
@@ -213,7 +213,7 @@ impl StockQuote {
     }
 
     /// ```rust
-    /// Сереализует структуру StockQuote в батовый вектор (`Vec<u8>`).
+    /// Сереализует структуру StockQuote в байтовый вектор (`Vec<u8>`).
     ///
     ///
     /// # Возращает:
@@ -241,5 +241,54 @@ impl StockQuote {
         bytes.extend_from_slice(self.timestamp.to_string().as_bytes());
         bytes.push(b'\n');
         bytes
+    }
+}
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn test_new(){
+        let test_quote = StockQuote{
+            ticker: "test".to_string(),
+            price: 0.0,
+            volume: 0,
+            timestamp: 0,
+        };
+        let quote = StockQuote::new("test");
+        assert_eq!(test_quote, quote);
+    }
+
+    #[test]
+    fn test_get_tickers(){
+        let test_str = "A,B";
+        let test_vec : Vec<StockQuote> = vec![StockQuote::new("A"), StockQuote::new("B")];
+        let quote_vec = StockQuote::get_tickers_subscribe(test_str);
+        assert_eq!(test_vec, quote_vec);
+    }
+
+    #[test]
+    fn test_to_string(){
+        let test_str = "test|0.0|0|0".to_string();
+        let test_quote = StockQuote::new("test");
+        let quote = StockQuote::from_string(&test_str).unwrap();
+        assert_eq!(test_quote, quote);
+    }
+
+    #[test]
+    fn test_from_string(){
+        let test_str = "AAPL|157.92|300000|1697071010".to_string();
+        let test_quote = StockQuote{ticker: "AAPL".to_string(), price: 157.92, volume: 300000,
+        timestamp: 1697071010};
+        let quote = StockQuote::from_string(&test_str).unwrap();
+        assert_eq!(test_quote, quote);
+    }
+
+    #[test]
+    fn test_to_bytes(){
+        let test_vec: Vec<u8> = vec![116, 101, 115, 116, 124, 48, 124, 48, 124, 48, 10];
+        let quote = StockQuote::new("test");
+        assert_eq!(test_vec, quote.to_bytes());
     }
 }

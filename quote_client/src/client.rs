@@ -15,12 +15,18 @@ pub(crate) struct QuoteStreamClient {
     is_running_ping: Arc<AtomicBool>,
     remote_add: Arc<Mutex<String>>
 }
-const UDP_READ_TIMEOUT_SECOND: u64 = 4;
-const DURATION_WAIT_TO_CONNECT: u64 = 10;
-const DURATION_READ_TIMEOUT: u64 = 5;
-const TCP_KEEPALIVE_WITH_TIME: u64 = 10;
-const TCP_KEEPALIVE_WITH_INTERVAL: u64 = 5;
 
+//константа таймаут чтения udp сек
+const UDP_READ_TIMEOUT_SECOND: u64 = 4;
+// константа таймаут времнеи на установление подключения сек
+const DURATION_WAIT_TO_CONNECT: u64 = 10;
+//констата таймаут времени чтения данных
+const DURATION_READ_TIMEOUT: u64 = 5;
+//костаната параметра with_time tcp_keepalive
+const TCP_KEEPALIVE_WITH_TIME: u64 = 10;
+//константа парметра with_interval tcp_keepalive
+const TCP_KEEPALIVE_WITH_INTERVAL: u64 = 5;
+//константа паузы потока отправки данных PING
 const PING_SEND_THREAD_WAIT: u64 = 2;
 
 impl QuoteStreamClient {
@@ -69,6 +75,7 @@ impl QuoteStreamClient {
         let mut is_connected = false;
         let mut udp_src_addr = String::new();
         loop {
+            //подключаемся к серверу
             if !is_connected {
                 log::info!("try connecting to server at {}", server_adr);
                 udp_src_addr = "".to_string();
@@ -80,6 +87,7 @@ impl QuoteStreamClient {
                         let mut writer = stream.try_clone().expect("failed to clone stream");
                         let mut reader = BufReader::new(stream);
                         let mut result = String::new();
+                        //отправляем команду для получения данных
                         writer.write_all(format!("STREAM udp://{} {}\n", udp_bind_adr, tickers).as_bytes())?;
                         writer.flush()?;
                         loop {
@@ -89,6 +97,7 @@ impl QuoteStreamClient {
                                     break;
                                 }
                                 Ok(_) => {
+                                    //сервер ответил сообщение ОК, коннект установлен
                                     if result.contains("OK") {
                                         is_connected = true;
                                         break;
@@ -114,11 +123,13 @@ impl QuoteStreamClient {
                 }
             }
             let mut quote = [0u8; 1024];
+            // читаем данные из udp сокета
             match socket.recv_from(&mut quote) {
                 Ok((0,_)) => {
                     is_connected = false;
                     continue;
                 }
+                //данные по котировкам
                 Ok((size, src)) => {
                     if size > 0 {
                          if let Some(quote) = StockQuote::from_string(String::from_utf8_lossy(&quote[..size]).as_ref())
@@ -126,12 +137,14 @@ impl QuoteStreamClient {
                              println!("{:?}", quote);
                          }
                     }
+                    //определяеи адрес отправителя, чтоб отправить сообщения PING
                     if src.to_string() != udp_src_addr {
                         udp_src_addr = src.to_string();
                         while self.is_running_ping.load(SeqCst) {
                             self.is_running_ping.store(false, SeqCst);
                         }
                         let udp = socket.try_clone()?;
+                        // создаем отдельны поток для оправки данных PING
                         if let Ok(mut server_adr) = self.remote_add.lock() {
                             *server_adr = src.to_string();
                             let is_running_ping = self.is_running_ping.clone();

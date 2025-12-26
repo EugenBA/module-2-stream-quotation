@@ -6,7 +6,8 @@ members = [
     "quote_lib",
 ]
 
-# Общие настройки для всех членов workspace[workspace.package]
+# Общие настройки для всех членов workspace
+[workspace.package]
 version = "0.1.0"
 edition = "2024"
 authors = ["Eugen Batts"]

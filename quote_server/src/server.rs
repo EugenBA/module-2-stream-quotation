@@ -33,9 +33,9 @@ pub(crate) enum QuoteServerThreadState{
 impl QuoteServer {
 
     fn parse_cmd_stream(split_whitespace: &mut SplitWhitespace) -> Option<(String, String)>{
-        if let Some(client_adr) = split_whitespace.next() && let Some(tickets) =
+        if let Some(client_adr) = split_whitespace.next() && let Some(tickers) =
             split_whitespace.next(){
-            return Some((client_adr.replace("udp://",""), tickets.to_string()))
+            return Some((client_adr.replace("udp://",""), tickers.to_string()))
         }
         None
     }
@@ -160,7 +160,7 @@ impl QuoteServer {
             });
         }
         else {
-            return Err(QuoteStreamServerError::BadCreateTcpStream("No read tickets".to_string()))
+            return Err(QuoteStreamServerError::BadCreateTcpStream("No read tickers".to_string()))
         }
         Ok(())
     }

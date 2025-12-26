@@ -74,9 +74,6 @@ fn main() {
     let udp_port = matches.get_one::<String>("udp-port");
     let tickers_file = matches.get_one::<String>("tickers-files");
     let log_level = matches.get_one::<String>("log-level");
-   // let local = Some("127.0.0.1:8120");
-   // let udp = Some("127.0.0.1:55505");
-   // let tickets_file = Some("/home/eugen/RustroverProjects/module-2-stream-quotation/tickets/tickets.txt");
     if let Some(server_addr) = server_addr &&
         let Some(udp_port) = udp_port && let Some(tickers_file) = tickers_file &&
         let Some(log_level) = log_level{
