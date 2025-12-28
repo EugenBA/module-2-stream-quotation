@@ -34,7 +34,7 @@ impl QuoteStream {
     fn thread_update_tickers(r: Receiver<StockQuote>,
                                         tickers: Arc<Mutex<Vec<StockQuote>>>,
                                         thread_state: Arc<Mutex<QuoteServerThreadState>>) -> Result<QuoteStreamResult, QuoteStreamServerError> {
-        //Метод обновления котировк
+        //Метод обновления котировок
         //Работает циклически и обновляет данные котировок
         if let Ok(mut state) = thread_state.lock() {
             *state = QuoteServerThreadState::Running;
