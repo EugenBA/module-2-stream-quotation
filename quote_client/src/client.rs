@@ -118,7 +118,7 @@ impl QuoteStreamClient {
                     },
                     Err(_) => {
                         thread::sleep(Duration::from_secs(DURATION_WAIT_TO_CONNECT));
-                        continue;
+                        return Err(QuoteClientError::BadNetworkBindSocket(format!("Error connect address {}", server_adr)));
                     }
                 }
             }
@@ -173,4 +173,27 @@ impl QuoteStreamClient {
             }
         }
     }
+}
+
+#[cfg(test)]
+mod test{
+    use super::*;
+    #[test]
+    fn test_connect() {
+        //error test
+        let url = "127.0.0.1:8120";
+        let test_connect = QuoteStreamClient::connect(url);
+        assert_eq!(test_connect.err().unwrap(), QuoteClientError::BadNetworkBindSocket("Connection refused (os error 111)".to_string()));
+    }
+
+    #[test]
+    fn test_get_quote_stream(){
+        //error test
+        let url = "127.0.0.1:8120";
+        let tickers = "MSFT,GOOG,AAPL".to_string();
+        let mut test_client = QuoteStreamClient::default();
+        let test_connect = test_client.get_quote_stream(url, url, tickers);
+        assert_eq!(test_connect.err().unwrap(), QuoteClientError::BadNetworkBindSocket("Error connect address 127.0.0.1:8120".to_string()));
+    }
+
 }

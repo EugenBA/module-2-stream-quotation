@@ -1,7 +1,7 @@
 use std::{io, net};
 use thiserror::Error;
 
-#[derive(Error, Debug)]
+#[derive(Error, Debug, PartialEq)]
 pub(crate) enum QuoteClientError
 {
     #[error("Bad network bind socket: {0}")]
