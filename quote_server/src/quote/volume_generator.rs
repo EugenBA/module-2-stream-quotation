@@ -57,3 +57,18 @@ impl QuoteGenerator {
         }
     }
 }
+
+#[cfg(test)]
+mod test{
+    use super::*;
+    #[test]
+    fn test_generate_quote(){
+        let tickers_a = "A";
+        let tickers_b = "AAPL";
+        let test_tickers_a = QuoteGenerator::generate_quote(tickers_a).unwrap();
+        let test_tickers_b = QuoteGenerator::generate_quote(tickers_b).unwrap();
+        assert!(test_tickers_a.price > 40.0 && test_tickers_a.price < 100.0);
+        assert!(test_tickers_b.price > 120.0 );
+    }
+    
+}

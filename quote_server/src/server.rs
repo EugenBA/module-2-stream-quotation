@@ -137,7 +137,7 @@ impl QuoteServer {
         //запуск сервера котирово - ожидание запроса клиента, и создание потока для обработк запроса
         if let Ok(tickers) = StockQuote::get_tickers(r) {
             let (sender, receiver) = bounded::<StockQuote>(tickers.len());
-            //поток генрации коитровок (генирирует котировоки и отправляет их в канал)
+            //поток генрации котировок (генирирует котировоки и отправляет их в канал)
             let _ = thread::scope(|s| {
                 s.spawn(|| {
                     QuoteGenerator::thread_generate(sender, &tickers)
