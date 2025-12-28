@@ -14,7 +14,9 @@ pub(crate) enum QuoteStreamServerError
     #[error("Bad set system time: {0}")]
     BadSetSystemTimeError(String),
     #[error("State change error: {0}")]
-    ChangeThreadStateError(String)
+    ChangeThreadStateError(String),
+    #[error("Receive from channel error: {0}")]
+    ReceiveQuoteError(String)
 }
 
 impl  From<io::Error> for QuoteStreamServerError{

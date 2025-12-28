@@ -54,6 +54,9 @@ impl QuoteStream {
                     });
                 }
             }
+            else {
+                return Err(QuoteStreamServerError::ReceiveQuoteError("Error receiving quote".to_string()));
+            }
             if let Ok(mut state) = thread_state.lock() {
                 if *state == QuoteServerThreadState::Cancelled || *state == QuoteServerThreadState::Stopped {
                     *state = QuoteServerThreadState::Stopped;
@@ -130,5 +133,63 @@ impl QuoteStream {
         }
         log::debug!("thread stream quotes: stop");
         Ok(QuoteStreamResult::Canceled)
+    }
+}
+
+#[cfg(test)]
+mod test{
+    use crossbeam_channel::bounded;
+    use super::*;
+    #[test]
+    fn test_thread_update_tickers() {
+        let (sender, receiver) = bounded::<StockQuote>(5);
+        let thread_stop;
+        let initial_quote = StockQuote {
+            ticker: "A".to_string(),
+            price: 10.0,
+            volume: 10,
+            timestamp: 10,
+        };
+
+        let tickers = Arc::new(Mutex::new(vec![initial_quote.clone()]));
+        let thread_state = Arc::new(Mutex::new(QuoteServerThreadState::Stopped));
+
+        let tickers_clone = tickers.clone();
+        let thread_state_clone = thread_state.clone();
+
+        let updated_quote = StockQuote {
+            ticker: "A".to_string(),
+            price: 10.0,
+            volume: 2000,
+            timestamp: 2000,
+        };
+        sender.send(updated_quote.clone()).unwrap();
+
+        let handle = thread::spawn(move || {
+            QuoteStream::thread_update_tickers(receiver, tickers_clone, thread_state_clone)
+        });
+
+        thread::sleep(Duration::from_millis(50));
+
+        // Verify update
+        {
+            let tickers_guard = tickers.lock().unwrap();
+            assert_eq!(tickers_guard[0].price, 10.0);
+            assert_eq!(tickers_guard[0].volume, 2000);
+            assert_eq!(tickers_guard[0].timestamp, 2000);
+        }
+
+        {
+            let mut state = thread_state.lock().unwrap();
+            *state = QuoteServerThreadState::Stopped;
+        }
+        loop {
+            if let Ok(mut state) = thread_state.lock() {
+                *state = QuoteServerThreadState::Cancelled;
+                thread_stop = true;
+                break;
+            }
+        }
+        assert!(thread_stop);
     }
 }
