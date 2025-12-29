@@ -7,7 +7,7 @@ use std::thread;
 use std::time::{Duration};
 use socket2::{Domain, Protocol, Socket, Type};
 use quote_lib::quote::stockquote::StockQuote;
-use crate::error::QuoteClientError;
+use crate::error::clienterror::QuoteClientError;
 use log;
 
 #[derive(Default)]

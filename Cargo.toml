@@ -1,8 +1,7 @@
 # stream-quatation/Cargo.toml
 [workspace]
 members = [
-    "quote_client",
-    "quote_server",
+    "quote_app",
     "quote_lib",
 ]
 
@@ -13,6 +12,3 @@ edition = "2024"
 authors = ["Eugen Batts"]
 license = "MIT"
 
-
-[workspace.dependencies]
-thiserror = "2.0"
