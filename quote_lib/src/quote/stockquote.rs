@@ -204,7 +204,7 @@ impl StockQuote {
         let date_time =  DateTime::from_timestamp_millis(self.timestamp as i64);
         if let Some(date_time) = date_time {
             return Ok(format!(
-                "{{\"ticker\": \"{}\",  \"price\": {}, \"volume\": {}, \"timestamp\": \"{}\"}}",
+                "{{\"ticker\": \"{}\", \"price\": {}, \"volume\": {}, \"timestamp\": \"{}\"}}",
                 self.ticker, self.price,
                 self.volume,
                 date_time.format("%Y-%m-%dT%H:%M:%S")
