@@ -134,7 +134,7 @@ impl QuoteStreamClient {
                     if size > 0 {
                          if let Some(quote) = StockQuote::from_string(String::from_utf8_lossy(&quote[..size]).as_ref())
                          {
-                             println!("{:?}", quote);
+                             println!("{}", quote.to_json()?);
                          }
                     }
                     //определяеи адрес отправителя, чтоб отправить сообщения PING

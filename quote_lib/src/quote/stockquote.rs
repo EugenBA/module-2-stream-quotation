@@ -4,6 +4,7 @@
 
 use std::io::Read;
 use crate::errors::QuoteGeneratorError;
+use chrono::{DateTime};
 
 /// Структура для хранения данных котировок
 #[derive(Debug, Clone, PartialEq)]
@@ -57,11 +58,12 @@ impl StockQuote {
     /// # Пример
     /// ```rust
     /// use std::io::Cursor;
+    /// use quote_lib::quote::stockquote::StockQuote;
     ///
     /// let data = "AAPL\nGOOG\nMSFT";
     /// let mut reader = Cursor::new(data);
     ///
-    /// match get_tickers(&mut reader) {
+    /// match StockQuote::get_tickers(&mut reader) {
     ///     Ok(tickers) => {
     ///         assert_eq!(tickers, vec!["AAPL".to_string(), "GOOG".to_string(), "MSFT".to_string()]);
     ///     }
@@ -93,8 +95,8 @@ impl StockQuote {
     ///
     /// ```
     /// let tickers = "AAPL,MSFT,GOOG";
-    /// let stock_quotes = get_tickers_subscribe(tickers);
-    /// assert_eq!(stock_quotes.len(), 3); // Converts and collects into a vector of `StockQuote`
+    /// let stock_quotes = StockQuote::get_tickers_subscribe(tickers);
+    /// assert_eq!(stock_quotes.len(), 3);
     /// ```
     /// ```
     pub fn get_tickers_subscribe(tickers: &str) -> Vec<StockQuote>{
@@ -123,13 +125,14 @@ impl StockQuote {
     ///
     ///  # Пример
     ///  ```
-    ///  use std::io::Cursor;
+    /// use std::io::Cursor;
+    /// use quote_lib::quote::stockquote::StockQuote;
     ///
-    ///  let data = "AAPL\nMSFT\nGOOGL\n";
-    ///  let mut cursor = Cursor::new(data);
+    /// let data = "AAPL\nMSFT\nGOOGL\n";
+    /// let mut cursor = Cursor::new(data);
     ///
-    ///  let result = YourStruct::get_tickers_string_from_file(&mut cursor);
-    ///  assert_eq!(result.unwrap(), "AAPL,MSFT,GOOGL");
+    /// let result = StockQuote::get_tickers_string_from_file(&mut cursor);
+    /// assert_eq!(result.unwrap(), "AAPL,MSFT,GOOGL");
     ///   ```
     ///
     /// ```
@@ -152,7 +155,7 @@ impl StockQuote {
    /// # Пример
    ///
    /// ```
-   /// let stock = Stock {
+   /// let stock = StockQuote {
    ///     ticker: String::from("AAPL"),
    ///     price: 150.23,
    ///     volume: 1200,
@@ -170,6 +173,47 @@ impl StockQuote {
     }
 
     /// ```rust
+    /// use quote_lib::quote::stockquote::StockQuote;
+    /// use chrono::{DateTime};
+    ///
+    /// Конвертация структуры StockQuote в формат json
+    ///
+    /// Метод сереализует структуру в строку с разделителями
+    ///
+    ///
+    /// # Возращает
+    ///
+    /// Строку с разделителями формата:
+    /// `"{"ticker": "", "price": "volume": "timestamp": ""`.
+    ///
+    /// # Пример
+    ///
+    /// ```
+    /// let stock = StockQuote {
+    ///     ticker: String::from("AAPL"),
+    ///     price: 150.23,
+    ///     volume: 1200,
+    ///     timestamp: 1633045692,
+    /// };
+    /// let serialized = stock.to_json();
+    /// assert_eq!(serialized, "{\"ticker\": \"AAPL\",  \"price\": 150.23, \"volume\": 1200, \"timestamp\": \"1970-01-19T21:37:25\"}");
+    /// ```
+    /// ```
+
+    pub fn to_json(&self) -> Result<String, QuoteGeneratorError> {
+        let date_time =  DateTime::from_timestamp_millis(self.timestamp as i64);
+        if let Some(date_time) = date_time {
+            return Ok(format!(
+                "{{\"ticker\": \"{}\",  \"price\": {}, \"volume\": {}, \"timestamp\": \"{}\"}}",
+                self.ticker, self.price,
+                self.volume,
+                date_time.format("%Y-%m-%dT%H:%M:%S")
+            ));
+        }
+        Err(QuoteGeneratorError::BadParseTimestampQuote("Error parse".to_string()))
+    }
+
+    /// ```rust
     /// Создает экземпляр струтуры StockQuote из строки с разделителем "|"
     ///
     ///
@@ -183,6 +227,8 @@ impl StockQuote {
     /// # Пример
     ///
     /// ```rust
+    /// use quote_lib::quote::stockquote::StockQuote;
+    ///
     /// let input = "AAPL|157.92|300000|1697071010";
     /// if let Some(stock) = StockQuote::from_string(input) {
     ///     println!("Parsed stock quote: {:?}", stock);
@@ -192,6 +238,8 @@ impl StockQuote {
     /// ```
     ///
     /// ```rust
+    /// use quote_lib::quote::stockquote::StockQuote;
+    ///
     /// let invalid_input = "AAPL|157.92|INVALID_VOLUME|1697071010";
     /// assert!(StockQuote::from_string(invalid_input).is_none());
     /// ```
@@ -221,7 +269,9 @@ impl StockQuote {
     ///
     /// # Пример:
     /// ```rust
-    /// let data = MyStruct {
+    /// use quote_lib::quote::stockquote::StockQuote;
+    ///
+    /// let data = StockQuote {
     ///     ticker: "AAPL".to_string(),
     ///     price: 150.34,
     ///     volume: 2000,
@@ -274,6 +324,18 @@ mod tests {
         let test_quote = StockQuote::new("test");
         let quote = StockQuote::from_string(&test_str).unwrap();
         assert_eq!(test_quote, quote);
+    }
+
+    #[test]
+    fn test_to_json(){
+        let stock = StockQuote {
+             ticker: String::from("AAPL"),
+             price: 150.23,
+             volume: 1200,
+             timestamp: 1633045692,
+         };
+        let serialized = stock.to_json().unwrap();
+        assert_eq!(serialized, "{\"ticker\": \"AAPL\",  \"price\": 150.23, \"volume\": 1200, \"timestamp\": \"1970-01-19T21:37:25\"}");
     }
 
     #[test]

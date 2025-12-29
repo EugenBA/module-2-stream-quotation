@@ -10,9 +10,12 @@ use thiserror::Error;
 #[derive(Error, Debug)]
 pub enum QuoteGeneratorError
 {
-    /// ошибка прсинга котировк
+    /// ошибка парсинга котировк
     #[error("Bad parse quote: {0}")]
     BadParseQuote(String),
+    #[error("Bad parse timestamp: {0}")]
+    /// ошибка парсинга даты времени из таймстампа
+    BadParseTimestampQuote(String)
 
 }
 
