@@ -31,6 +31,7 @@ quote-server localhost:8210 55500 tickers.txt info
 Логирование отравляется в файл: quote-client.log
 
 файлы tickers:
+
 tickers.txt - файл котировк для сервера
 tickers_request.txt - файл котировк для запроса клиентом
 tickers_request_1.txt - файл котировк для запроса клиентом
