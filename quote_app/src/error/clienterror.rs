@@ -1,10 +1,10 @@
+
+use quote_lib::errors::QuoteGeneratorError;
 use std::{io, net};
 use thiserror::Error;
-use quote_lib::errors::QuoteGeneratorError;
 
 #[derive(Error, Debug, PartialEq)]
-pub(crate) enum QuoteClientError
-{
+pub(crate) enum QuoteClientError {
     #[error("Bad network bind socket: {0}")]
     BadNetworkBindSocket(String),
     #[error("Error parse network address: {0}")]
@@ -13,19 +13,19 @@ pub(crate) enum QuoteClientError
     ParseQuoteError(String),
 }
 
-impl  From<io::Error> for QuoteClientError{
-    fn from(err: io::Error) -> Self{
+impl From<io::Error> for QuoteClientError {
+    fn from(err: io::Error) -> Self {
         QuoteClientError::BadNetworkBindSocket(err.to_string())
     }
 }
 
-impl From<net::AddrParseError>  for QuoteClientError{
+impl From<net::AddrParseError> for QuoteClientError {
     fn from(err: net::AddrParseError) -> Self {
         QuoteClientError::AddressParseError(err.to_string())
     }
 }
 
-impl From<QuoteGeneratorError> for QuoteClientError{
+impl From<QuoteGeneratorError> for QuoteClientError {
     fn from(err: QuoteGeneratorError) -> Self {
         QuoteClientError::ParseQuoteError(err.to_string())
     }

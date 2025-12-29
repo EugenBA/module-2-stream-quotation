@@ -3,6 +3,10 @@ name = "quote-app"
 version = "0.1.0"
 edition = "2024"
 
+[features]
+server=[]
+client=[]
+
 [dependencies]
 crossbeam-channel="0.5"
 quote-lib ={path = "../quote_lib"}
@@ -15,8 +19,9 @@ env_logger = "0.11"
 chrono = "0.4"
 
 [[bin]]
-name = "qoute-server"
+name = "quote-server"
 path = "bin/quote-server.rs"
+
 
 [[bin]]
 name = "quote-client"

@@ -13,6 +13,10 @@ pub(crate) struct CliArgs{
 
 impl CliArgs{
     pub fn get_cli_args() -> Option<Self> {
+        #[cfg(feature="client")]
+        let file_log = "quote-client.log";
+        #[cfg(feature="server")]
+        let file_log = "quote-server.log";
         let matches = Command::new(env!("CARGO_PKG_NAME"))
             .version(env!("CARGO_PKG_VERSION"))
             .about(format!("Demo quote stream {}", env!("CARGO_PKG_NAME")))
@@ -50,7 +54,7 @@ impl CliArgs{
                     .short('f')
                     .long("log-file")
                     .help("Log file")
-                    .default_value("quote-client.log")
+                    .default_value(file_log)
                     .required(false)
             )
             .get_matches();
