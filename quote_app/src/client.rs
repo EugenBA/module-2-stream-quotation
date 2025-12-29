@@ -1,19 +1,20 @@
+
+use crate::error::clienterror::QuoteClientError;
+use log;
+use quote_lib::quote::stockquote::StockQuote;
+use socket2::{Domain, Protocol, Socket, Type};
 use std::io::{BufRead, BufReader, ErrorKind, Write};
 use std::net::{SocketAddr, TcpStream, UdpSocket};
-use std::sync::{Arc, Mutex};
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering::SeqCst;
+use std::sync::{Arc, Mutex};
 use std::thread;
-use std::time::{Duration};
-use socket2::{Domain, Protocol, Socket, Type};
-use quote_lib::quote::stockquote::StockQuote;
-use crate::error::QuoteClientError;
-use log;
+use std::time::Duration;
 
 #[derive(Default)]
 pub(crate) struct QuoteStreamClient {
     is_running_ping: Arc<AtomicBool>,
-    remote_add: Arc<Mutex<String>>
+    remote_add: Arc<Mutex<String>>,
 }
 
 //константа таймаут чтения udp сек
@@ -35,7 +36,7 @@ impl QuoteStreamClient {
         let socket_addr = server_addr.parse::<SocketAddr>()?;
         // Включаем TCP keepalive
         socket.set_keepalive(true)?;
-       #[cfg(any(target_os = "linux", target_os = "macos"))]
+        #[cfg(any(target_os = "linux", target_os = "macos"))]
         {
             socket.set_tcp_keepalive(
                 &socket2::TcpKeepalive::new()
@@ -50,14 +51,16 @@ impl QuoteStreamClient {
         Ok(stream)
     }
 
-    fn thread_ping_quote_server(socket: UdpSocket,
-                                server_adr: Arc<Mutex<String>>,
-                                is_running_ping: Arc<AtomicBool>) -> Result<(), QuoteClientError> {
+    fn thread_ping_quote_server(
+        socket: UdpSocket,
+        server_adr: Arc<Mutex<String>>,
+        is_running_ping: Arc<AtomicBool>,
+    ) -> Result<(), QuoteClientError> {
         is_running_ping.store(true, SeqCst);
         let mut send_addr = String::new();
         loop {
             if !is_running_ping.load(SeqCst) {
-                break
+                break;
             }
             if let Ok(server_adr) = server_adr.lock() {
                 send_addr = server_adr.to_string();
@@ -69,7 +72,12 @@ impl QuoteStreamClient {
         Ok(())
     }
 
-    pub fn get_quote_stream(&mut self, udp_bind_adr: &str, server_adr: &str, tickers: String) -> Result<(), QuoteClientError> {
+    pub fn get_quote_stream(
+        &mut self,
+        udp_bind_adr: &str,
+        server_adr: &str,
+        tickers: String,
+    ) -> Result<(), QuoteClientError> {
         let socket = UdpSocket::bind(udp_bind_adr)?;
         socket.set_read_timeout(Some(Duration::from_secs(UDP_READ_TIMEOUT_SECOND)))?;
         let mut is_connected = false;
@@ -88,7 +96,9 @@ impl QuoteStreamClient {
                         let mut reader = BufReader::new(stream);
                         let mut result = String::new();
                         //отправляем команду для получения данных
-                        writer.write_all(format!("STREAM udp://{} {}\n", udp_bind_adr, tickers).as_bytes())?;
+                        writer.write_all(
+                            format!("STREAM udp://{} {}\n", udp_bind_adr, tickers).as_bytes(),
+                        )?;
                         writer.flush()?;
                         loop {
                             match reader.read_line(&mut result) {
@@ -102,40 +112,45 @@ impl QuoteStreamClient {
                                         is_connected = true;
                                         break;
                                     }
-                                },
+                                }
                                 Err(e) if e.kind() == ErrorKind::WouldBlock => {
                                     result.clear();
                                     log::error!("waiting for server response...");
                                     thread::sleep(Duration::from_millis(DURATION_WAIT_TO_CONNECT));
                                     continue;
-                                },
+                                }
                                 Err(_) => {
                                     is_connected = false;
                                     break;
                                 }
                             }
                         }
-                    },
-                    Err(_) => {
+                    }
+                    Err(e) => {
                         thread::sleep(Duration::from_secs(DURATION_WAIT_TO_CONNECT));
-                        return Err(QuoteClientError::BadNetworkBindSocket(format!("Error connect address {}", server_adr)));
+                        log::error!("error connect to server: {}", e);
+                        return Err(QuoteClientError::BadNetworkBindSocket(format!(
+                            "Error connect address {}, error: {}",
+                            server_adr, e.to_string()
+                        )));
                     }
                 }
             }
             let mut quote = [0u8; 1024];
             // читаем данные из udp сокета
             match socket.recv_from(&mut quote) {
-                Ok((0,_)) => {
+                Ok((0, _)) => {
                     is_connected = false;
                     continue;
                 }
                 //данные по котировкам
                 Ok((size, src)) => {
                     if size > 0 {
-                         if let Some(quote) = StockQuote::from_string(String::from_utf8_lossy(&quote[..size]).as_ref())
-                         {
-                             println!("{}", quote.to_json()?);
-                         }
+                        if let Some(quote) = StockQuote::from_string(
+                            String::from_utf8_lossy(&quote[..size]).as_ref(),
+                        ) {
+                            println!("{}", quote.to_json()?);
+                        }
                     }
                     //определяеи адрес отправителя, чтоб отправить сообщения PING
                     if src.to_string() != udp_src_addr {
@@ -153,11 +168,11 @@ impl QuoteStreamClient {
                                 QuoteStreamClient::thread_ping_quote_server(
                                     udp,
                                     server_adr,
-                                    is_running_ping
+                                    is_running_ping,
                                 )
                             });
                             while !self.is_running_ping.load(SeqCst) {
-                                log::warn!("waiting starting ping quote server...");
+                                log::info!("waiting starting ping quote server...");
                                 thread::sleep(Duration::from_millis(DURATION_WAIT_TO_CONNECT));
                             }
                         }
@@ -176,24 +191,31 @@ impl QuoteStreamClient {
 }
 
 #[cfg(test)]
-mod test{
+mod test {
     use super::*;
     #[test]
     fn test_connect() {
         //error test
         let url = "127.0.0.1:8120";
         let test_connect = QuoteStreamClient::connect(url);
-        assert_eq!(test_connect.err().unwrap(), QuoteClientError::BadNetworkBindSocket("Connection refused (os error 111)".to_string()));
+        assert_eq!(
+            test_connect.err().unwrap(),
+            QuoteClientError::BadNetworkBindSocket("Connection refused (os error 111)".to_string())
+        );
     }
 
     #[test]
-    fn test_get_quote_stream(){
+    fn test_get_quote_stream() {
         //error test
         let url = "127.0.0.1:8120";
         let tickers = "MSFT,GOOG,AAPL".to_string();
         let mut test_client = QuoteStreamClient::default();
         let test_connect = test_client.get_quote_stream(url, url, tickers);
-        assert_eq!(test_connect.err().unwrap(), QuoteClientError::BadNetworkBindSocket("Error connect address 127.0.0.1:8120".to_string()));
+        assert_eq!(
+            test_connect.err().unwrap(),
+            QuoteClientError::BadNetworkBindSocket(
+                "Error connect address 127.0.0.1:8120".to_string()
+            )
+        );
     }
-
 }

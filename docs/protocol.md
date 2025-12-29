@@ -1,9 +1,7 @@
 # Протокол stream
 Запрос котировк:
-STREAM udp://loclahost:55500 AAPL,TSLA
+STREAM udp://127.0.0.1:55500 AAPL,TSLA
 
-Отсновка:
+Остановка
 STOP
 
-Перезапрос:
-RESTREAM udp://localhost:55500 AAPL,NVDA
