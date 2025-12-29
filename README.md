@@ -1,34 +1,46 @@
 # module-2 стримминг котировок
 
+
 ## Серверная часть
 Многопоточный сервер для обработки запросов на получение котировок акций TCP/UDP (udp для стримминга).
-Запуск сервера:
+
+### Сборка:
+
+cargo build --package quote-app --bin quote-server --features server
+
+### Запуск сервера:
 quote-server <server_addr> <udp-port> <ticker-file> <log-level> <log-file>
 
-<server_addr> - адрес и порт на прослушивание данных 
-<udp-port> - udp порт для обмена по протоколу UDP
-<ticker-file>  - файл котировок (с разделителем "\n") для генерации котировок
-<log-level> - уровень логирования (info, debug, warn, error)
-<log-file> - файл для логирования (по умолчанию qute-server.log)
+- &lt;server_addr&gt; - адрес и порт на прослушивание данных 
+- &lt;udp-port&gt; - udp порт для обмена по протоколу UDP
+- &lt;ticker-file&gt;  - файл котировок (с разделителем "\n") для генерации котировок
+- &lt;log-level&gt; - уровень логирования (info, debug, warn, error)
+- &lt;log-file&gt; - файл для логирования (по умолчанию quote-server.log)
+
+Логирование по умолчанию отравляется в файл: quote-server.log
 
 Пример запуска сервера:
-quote-server -s 127.0.0.1:8210 -u 55505 -t tickers.txt -l info
+quote-server -s 127.0.0.1:8210 -u 55505 -t tickers_request.txt -l info
 
 ## Клиентская часть
 Клиент для запроса котировок акций.
-Запуск клиента:
 Многопоточный клиент, поддерживает отправление данных PING для контроля работы со стороны сервера
+
+### Сборка:
+cargo build --package quote-app --bin quote-client --features client
+
+### Запуск клиента:
 quote-client <server_addr <udp-port> <ticker-file> <log-level> <log-file>
 
-Пример запуска сервера:
-quote-server 127.0.0.1:8210 55500 tickers.txt info
-<server_addr> - адрес и порт сервера котировок
-<udp-port> - udp порт для обмена по протоколу UDP
-<ticker-file>  - файл запроса котировок (с разделителем "\n")
-<log-level> - уровень логирования (info, debug, warn, error)
-<log-file> - файл для логирования (по умолчанию qute-client.log)
+Пример запуска клиента:
+quote-client -s 127.0.0.1:8210 -u 55500 -t tickers.txt -l info
+- &lt;server_addr&gt; - адрес и порт сервера котировок
+- &lt;udp-port&gt; - udp порт для обмена по протоколу UDP
+- &lt;ticker-file&gt;  - файл запроса котировок (с разделителем "\n")
+- &lt;log-level&gt; - уровень логирования (info, debug, warn, error)
+- &lt;log-file&gt; - файл для логирования (по умолчанию quote-client.log)
 
-Логирование отравляется в файл: quote-client.log
+Логирование по умолчанию отравляется в файл: quote-client.log
 
 ## Пример вывода данных:
 
